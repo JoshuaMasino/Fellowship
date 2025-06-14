@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, MapPin, X, Settings, ArrowRight } from 'lucide-react';
+import { User, MapPin, X, Settings, ArrowRight, ChevronDown } from 'lucide-react';
 import { Pin, getUserPins, getCurrentUserProfile, supabase } from '../../lib/supabase';
 
 interface UserProfileModalProps {
@@ -27,6 +27,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isPinsExpanded, setIsPinsExpanded] = useState(false);
 
   const isOwnProfile = username === currentUser;
   const isGuestUser = username.match(/^\d{7}$/);
@@ -230,76 +231,86 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </p>
               </div>
             )}
-
-            {/* Stats */}
-            <div className="flex space-x-6 mb-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">{userPins.length}</div>
-                <div className="text-sm text-gray-400">Pins</div>
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Content */}
         <div className="px-6 pb-6 overflow-y-auto max-h-[50vh]">
-          {/* Pins Section */}
+          {/* Collapsible Pins Section */}
           <div>
-            <div className="flex items-center space-x-2 mb-4">
-              <MapPin className="w-5 h-5 text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-200">Pins</h3>
-            </div>
-            
-            {userPins.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <MapPin className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No pins created yet</p>
-                {isOwnProfile && (
-                  <p className="text-sm">Tap on the map to create your first pin!</p>
-                )}
+            {/* Clickable Header */}
+            <button
+              onClick={() => setIsPinsExpanded(!isPinsExpanded)}
+              className="w-full flex items-center justify-between p-4 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors mb-4 group"
+            >
+              <div className="flex items-center space-x-3">
+                <MapPin className="w-5 h-5 text-gray-400 group-hover:text-gray-300 transition-colors" />
+                <h3 className="text-lg font-semibold text-gray-200 group-hover:text-gray-100 transition-colors">
+                  Pins ({userPins.length})
+                </h3>
               </div>
-            ) : (
-              <div className="space-y-3 max-h-80 overflow-y-auto">
-                {userPins.map((pin) => (
-                  <button
-                    key={pin.id}
-                    onClick={() => onSelectPin(pin.id)}
-                    className="w-full bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-left transition-all duration-200 group border border-gray-700 hover:border-gray-600"
-                  >
-                    <div className="flex items-start space-x-3">
-                      {pin.images && pin.images.length > 0 && (
-                        <img
-                          src={pin.images[0]}
-                          alt="Pin preview"
-                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0 group-hover:scale-105 transition-transform duration-200"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-200 line-clamp-2 mb-2 group-hover:text-gray-100 transition-colors">
-                          {pin.description}
-                        </p>
-                        <p className="text-xs text-gray-400 mb-2">
-                          {new Date(pin.created_at).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                        <p className="text-xs text-gray-500 mb-3">
-                          {pin.lat.toFixed(4)}, {pin.lng.toFixed(4)}
-                        </p>
-                        
-                        {/* View on Map indicator */}
-                        <div className="flex items-center space-x-2 text-blue-400 group-hover:text-blue-300 transition-colors">
-                          <MapPin className="w-4 h-4" />
-                          <span className="text-xs font-medium">View on Map</span>
-                          <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform duration-200" />
+              <ChevronDown 
+                className={`w-5 h-5 text-gray-400 group-hover:text-gray-300 transition-all duration-200 ${
+                  isPinsExpanded ? 'rotate-180' : ''
+                }`} 
+              />
+            </button>
+            
+            {/* Collapsible Pin List */}
+            {isPinsExpanded && (
+              <div className="animate-fadeInUp">
+                {userPins.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400">
+                    <MapPin className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p>No pins created yet</p>
+                    {isOwnProfile && (
+                      <p className="text-sm">Tap on the map to create your first pin!</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {userPins.map((pin) => (
+                      <button
+                        key={pin.id}
+                        onClick={() => onSelectPin(pin.id)}
+                        className="w-full bg-gray-800 hover:bg-gray-700 rounded-lg p-4 text-left transition-all duration-200 group border border-gray-700 hover:border-gray-600"
+                      >
+                        <div className="flex items-start space-x-3">
+                          {pin.images && pin.images.length > 0 && (
+                            <img
+                              src={pin.images[0]}
+                              alt="Pin preview"
+                              className="w-16 h-16 rounded-lg object-cover flex-shrink-0 group-hover:scale-105 transition-transform duration-200"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-200 line-clamp-2 mb-2 group-hover:text-gray-100 transition-colors">
+                              {pin.description}
+                            </p>
+                            <p className="text-xs text-gray-400 mb-2">
+                              {new Date(pin.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                            <p className="text-xs text-gray-500 mb-3">
+                              {pin.lat.toFixed(4)}, {pin.lng.toFixed(4)}
+                            </p>
+                            
+                            {/* View on Map indicator */}
+                            <div className="flex items-center space-x-2 text-blue-400 group-hover:text-blue-300 transition-colors">
+                              <MapPin className="w-4 h-4" />
+                              <span className="text-xs font-medium">View on Map</span>
+                              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform duration-200" />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
