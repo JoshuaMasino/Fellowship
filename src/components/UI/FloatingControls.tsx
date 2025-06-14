@@ -17,11 +17,11 @@ const FloatingControls: React.FC<FloatingControlsProps> = ({
   currentUser,
 }) => {
   return (
-    <div className="fixed bottom-4 left-4 z-40 space-y-3">
+    <div className="fixed bottom-4 left-4 z-40 space-y-3 pointer-events-none">
       {/* User Profile Button */}
       <button
         onClick={onOpenUserProfile}
-        className="w-14 h-14 glass-blue rounded-full shadow-xl flex items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200"
+        className="w-14 h-14 glass-blue rounded-full shadow-xl flex items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200 pointer-events-auto"
         title="View your profile"
       >
         <User className="w-6 h-6 text-blue-700 icon-shadow-white-sm" />
@@ -30,7 +30,7 @@ const FloatingControls: React.FC<FloatingControlsProps> = ({
       {/* Settings Panel Button */}
       <button
         onClick={onUserPanelOpen}
-        className="w-14 h-14 glass-blue rounded-full shadow-xl flex items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200"
+        className="w-14 h-14 glass-blue rounded-full shadow-xl flex items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200 pointer-events-auto"
         title="Settings"
       >
         <div className="w-6 h-6 flex items-center justify-center">
@@ -43,7 +43,7 @@ const FloatingControls: React.FC<FloatingControlsProps> = ({
       {/* Stats Panel - Now Clickable for Explore */}
       <button
         onClick={onOpenExploreModal}
-        className="w-14 h-14 glass-blue rounded-full shadow-xl flex flex-col items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200"
+        className="w-14 h-14 glass-blue rounded-full shadow-xl flex flex-col items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200 pointer-events-auto"
         title="Explore all pins"
       >
         <Zap className="w-4 h-4 text-yellow-500 mb-1 icon-shadow-white-sm" />
@@ -51,7 +51,7 @@ const FloatingControls: React.FC<FloatingControlsProps> = ({
       </button>
 
       {/* Help Text */}
-      <div className="glass-blue rounded-2xl shadow-xl p-3 text-center max-w-[200px]">
+      <div className="glass-blue rounded-2xl shadow-xl p-3 text-center max-w-[200px] pointer-events-auto">
         <div className="flex items-center justify-center space-x-1 mb-1">
           <Plus className="w-4 h-4 text-blue-800 icon-shadow-white-sm" />
           <MapPin className="w-4 h-4 text-blue-800 icon-shadow-white-sm" />
