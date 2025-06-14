@@ -20,16 +20,10 @@ function App() {
   const [profileToViewUsername, setProfileToViewUsername] = useState('');
   const [pinToOpenOnMap, setPinToOpenOnMap] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
-  const [isConnected, setIsConnected] = useState(!!supabase);
+  const [firstClickLocation, setFirstClickLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isConnected, setIsConnected] = useState(true);
 
   useEffect(() => {
-    // Check if Supabase is configured
-    if (!supabase) {
-      console.log('❌ Supabase not configured - running in offline mode');
-      setIsConnected(false);
-      return;
-    }
-
     // Fetch initial pins
     fetchPins();
 
@@ -78,12 +72,6 @@ function App() {
   };
 
   const fetchPins = async () => {
-    if (!supabase) {
-      console.log('❌ Cannot fetch pins: Supabase not configured');
-      setIsConnected(false);
-      return;
-    }
-
     try {
       const { data, error } = await supabase
         .from('pins')
@@ -109,18 +97,28 @@ function App() {
       lat,
       lng,
       isConnected,
-      currentUser
+      currentUser,
+      firstClickLocation
     });
     
-    if (!isConnected || !supabase) {
+    if (!isConnected) {
       console.log('❌ Pin creation blocked: No database connection');
       alert('Cannot add pins - database connection unavailable. Please check your Supabase configuration.');
       return;
     }
 
-    console.log('✅ Pin creation allowed, opening modal...');
-    setPendingPin({ lat, lng });
-    setIsPinModalOpen(true);
+    // Two-click pin placement logic
+    if (!firstClickLocation) {
+      // First click - store location and show temporary marker
+      console.log('🎯 First click - storing location for confirmation');
+      setFirstClickLocation({ lat, lng });
+    } else {
+      // Second click - confirm pin creation with first click location
+      console.log('✅ Second click - confirming pin creation at first click location');
+      setPendingPin(firstClickLocation);
+      setIsPinModalOpen(true);
+      setFirstClickLocation(null); // Reset first click location
+    }
   };
 
   const handleCreatePin = async (description: string, images: string[], pinColor?: string, storagePaths?: string[]) => {
@@ -134,7 +132,7 @@ function App() {
       currentUser
     });
     
-    if (!pendingPin || !isConnected || !supabase) {
+    if (!pendingPin || !isConnected) {
       console.log('❌ Pin creation aborted: Missing pendingPin or no connection');
       return;
     }
@@ -175,7 +173,7 @@ function App() {
   };
 
   const handleDeletePin = async (pinId: string) => {
-    if (!isConnected || !supabase) {
+    if (!isConnected) {
       alert('Cannot delete pins - database connection unavailable.');
       return;
     }
@@ -206,7 +204,7 @@ function App() {
       isConnected
     });
 
-    if (!isConnected || !supabase) {
+    if (!isConnected) {
       console.log('❌ Like blocked: No database connection');
       alert('Cannot like pins - database connection unavailable.');
       return;
@@ -265,7 +263,7 @@ function App() {
   };
 
   const handleCommentPin = async (pinId: string, comment: string) => {
-    if (!isConnected || !supabase) {
+    if (!isConnected) {
       alert('Cannot add comments - database connection unavailable.');
       return;
     }
@@ -302,6 +300,10 @@ function App() {
     setIsAuthPageOpen(false);
   };
 
+  const handleCancelFirstClick = () => {
+    setFirstClickLocation(null);
+  };
+
   // Show auth page if requested
   if (isAuthPageOpen) {
     return <AuthPage onGuestContinue={handleGuestContinue} />;
@@ -323,6 +325,8 @@ function App() {
           isAdmin={false}
           pinToOpenOnMap={pinToOpenOnMap}
           onPinOpened={() => setPinToOpenOnMap(null)}
+          firstClickLocation={firstClickLocation}
+          onCancelFirstClick={handleCancelFirstClick}
         />
       </div>
       
@@ -376,7 +380,21 @@ function App() {
 
       {!isConnected && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          Database connection unavailable. Please configure Supabase to enable full functionality.
+          Database connection unavailable. Please check your Supabase configuration.
+        </div>
+      )}
+
+      {/* First Click Indicator */}
+      {firstClickLocation && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 flex items-center space-x-3">
+          <div className="w-3 h-3 bg-blue-300 rounded-full animate-pulse"></div>
+          <span className="font-medium">Click again to confirm pin location</span>
+          <button
+            onClick={handleCancelFirstClick}
+            className="ml-2 text-blue-200 hover:text-white transition-colors"
+          >
+            Cancel
+          </button>
         </div>
       )}
     </div>

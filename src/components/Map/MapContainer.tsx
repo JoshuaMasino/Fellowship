@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMapEvents, Marker, Popup } from 'react-leaflet';
 import { LatLng, Icon, Map as LeafletMap } from 'leaflet';
-import { Plus, Minus, Layers } from 'lucide-react';
+import { Plus, Minus, Layers, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { Pin } from '../../lib/supabase';
 import PinPopup from './PinPopup';
@@ -12,6 +12,20 @@ const createPinIcon = (color: string = '#FFFC00') => new Icon({
     <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M16 0C7.163 0 0 7.163 0 16C0 28 16 42 16 42S32 28 32 16C32 7.163 24.837 0 16 0Z" fill="${color}"/>
       <circle cx="16" cy="16" r="8" fill="white"/>
+    </svg>
+  `)}`,
+  iconSize: [32, 42],
+  iconAnchor: [16, 42],
+  popupAnchor: [0, -42],
+});
+
+// Temporary pin icon for first click
+const createTemporaryPinIcon = () => new Icon({
+  iconUrl: `data:image/svg+xml;base64,${btoa(`
+    <svg width="32" height="42" viewBox="0 0 32 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M16 0C7.163 0 0 7.163 0 16C0 28 16 42 16 42S32 28 32 16C32 7.163 24.837 0 16 0Z" fill="#60A5FA" stroke="#3B82F6" stroke-width="2"/>
+      <circle cx="16" cy="16" r="6" fill="white"/>
+      <circle cx="16" cy="16" r="3" fill="#3B82F6"/>
     </svg>
   `)}`,
   iconSize: [32, 42],
@@ -47,6 +61,8 @@ interface MapComponentProps {
   isAdmin?: boolean;
   pinToOpenOnMap?: string | null;
   onPinOpened?: () => void;
+  firstClickLocation?: { lat: number; lng: number } | null;
+  onCancelFirstClick?: () => void;
 }
 
 const MapComponent: React.FC<MapComponentProps> = ({
@@ -60,6 +76,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
   isAdmin = false,
   pinToOpenOnMap,
   onPinOpened,
+  firstClickLocation,
+  onCancelFirstClick,
 }) => {
   const mapRef = useRef<LeafletMap>(null);
   const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
@@ -162,6 +180,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         />
         <MapEvents onMapClick={handleMapClick} isPinPopupOpen={isPinPopupOpen} />
         
+        {/* Regular pins */}
         {pins.map((pin) => (
           <Marker
             key={pin.id}
@@ -201,6 +220,45 @@ const MapComponent: React.FC<MapComponentProps> = ({
             </Popup>
           </Marker>
         ))}
+
+        {/* Temporary pin for first click */}
+        {firstClickLocation && (
+          <Marker
+            position={[firstClickLocation.lat, firstClickLocation.lng]}
+            icon={createTemporaryPinIcon()}
+          >
+            <Popup
+              closeButton={false}
+              className="custom-popup"
+              minWidth={250}
+              maxWidth={300}
+            >
+              <div className="bg-blue-50 rounded-lg p-4 text-center">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-blue-800">Confirm Location</h3>
+                  <button
+                    onClick={onCancelFirstClick}
+                    className="p-1 hover:bg-blue-200 rounded-full transition-colors"
+                  >
+                    <X className="w-4 h-4 text-blue-600" />
+                  </button>
+                </div>
+                <p className="text-blue-700 text-sm mb-4">
+                  Click anywhere on the map again to confirm this pin location, or click cancel to start over.
+                </p>
+                <div className="text-xs text-blue-600 font-mono">
+                  {firstClickLocation.lat.toFixed(4)}, {firstClickLocation.lng.toFixed(4)}
+                </div>
+                <button
+                  onClick={onCancelFirstClick}
+                  className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
 
       {/* Map Controls */}
