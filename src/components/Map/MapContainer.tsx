@@ -170,6 +170,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
       <MapContainer
         center={[40.7128, -74.0060]} // NYC coordinates
         zoom={13}
+        minZoom={1} // Prevent zooming out beyond world view
         style={{ height: '100%', width: '100%' }}
         ref={mapRef}
         zoomControl={false}
