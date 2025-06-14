@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, MapPin, X, Settings } from 'lucide-react';
-import { Pin, getUserPins } from '../../lib/supabase';
+import { Pin, getUserPins, getCurrentUserProfile, supabase } from '../../lib/supabase';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -25,6 +25,8 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   const isOwnProfile = username === currentUser;
   const isGuestUser = username.match(/^\d{7}$/);
@@ -32,8 +34,26 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   useEffect(() => {
     if (isOpen && username) {
       fetchProfileData();
+      checkAuthStatus();
     }
   }, [isOpen, username]);
+
+  const checkAuthStatus = async () => {
+    if (!supabase) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      
+      if (user) {
+        const profile = await getCurrentUserProfile();
+        setUserProfile(profile);
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setIsAuthenticated(false);
+    }
+  };
 
   const fetchProfileData = async () => {
     setLoading(true);
@@ -78,7 +98,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-white">
               <User className="w-8 h-8 mx-auto mb-2 opacity-70 icon-shadow-white-sm" />
-              <p className="text-sm opacity-70 text-shadow-white-sm">Guest Profile</p>
+              <p className="text-sm opacity-70 text-shadow-white-sm">
+                {isAuthenticated && isOwnProfile ? 'Your Profile' : 'Guest Profile'}
+              </p>
             </div>
           </div>
           
@@ -106,15 +128,15 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <div className="pt-12">
             <div className="flex items-center space-x-2 mb-2">
               <h1 className="text-2xl font-bold text-gray-200">
-                Guest {username}
+                {isAuthenticated && userProfile ? userProfile.username : `Guest ${username}`}
               </h1>
             </div>
             <p className="text-gray-400 text-sm mb-4">
-              Guest user
+              {isAuthenticated && isOwnProfile ? 'Authenticated user' : 'Guest user'}
             </p>
 
-            {/* Username Settings - Only for own profile */}
-            {isOwnProfile && (
+            {/* Username Settings - Only for authenticated users viewing their own profile */}
+            {isOwnProfile && isAuthenticated && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-lg font-semibold text-gray-200 flex items-center space-x-2">
@@ -135,14 +157,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       type="text"
                       value={newUsername}
                       onChange={(e) => setNewUsername(e.target.value)}
-                      placeholder="Enter 7-digit username"
-                      maxLength={7}
+                      placeholder="Enter new username"
                       className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-200 placeholder:text-gray-400"
                     />
                     <div className="flex space-x-2">
                       <button
                         onClick={handleUsernameSubmit}
-                        disabled={!newUsername.trim() || newUsername.length !== 7 || !/^\d+$/.test(newUsername)}
+                        disabled={!newUsername.trim()}
                         className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                       >
                         Update Username
@@ -158,22 +179,40 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       </button>
                     </div>
                     <p className="text-xs text-gray-400">
-                      Username must be exactly 7 digits
+                      Choose a unique username for your account
                     </p>
                   </div>
                 ) : (
                   <div className="bg-gray-800 rounded-lg p-4">
-                    <p className="text-gray-200 font-mono text-lg">Guest {username}</p>
+                    <p className="text-gray-200 font-mono text-lg">
+                      {userProfile?.username || `Guest ${username}`}
+                    </p>
                     <p className="text-sm text-gray-400 mt-1">
-                      Your current guest username
+                      Your current username
                     </p>
                   </div>
                 )}
               </div>
             )}
 
+            {/* Guest Username Display - For guests viewing their own profile */}
+            {isOwnProfile && !isAuthenticated && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-200 mb-3 flex items-center space-x-2">
+                  <Settings className="w-5 h-5" />
+                  <span>Username</span>
+                </h3>
+                <div className="bg-gray-800 rounded-lg p-4">
+                  <p className="text-gray-200 font-mono text-lg">Guest {username}</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Guest usernames cannot be changed. Sign up for an account to customize your username.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Authentication Button for Current User */}
-            {isOwnProfile && (
+            {isOwnProfile && !isAuthenticated && (
               <div className="mb-4">
                 <button
                   onClick={() => {
