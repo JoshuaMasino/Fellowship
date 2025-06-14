@@ -1,9 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'http://localhost:54321';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+// Use environment variables if available, otherwise provide placeholder values
+// In production, these should be set via environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Create Supabase client only if we have valid credentials
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export type Pin = {
   id: string;
@@ -49,6 +54,8 @@ export type Profile = {
 };
 
 export const getCurrentUserProfile = async (): Promise<Profile | null> => {
+  if (!supabase) return null;
+  
   try {
     console.log('🔍 Checking for authenticated user...');
     const { data: { user } } = await supabase.auth.getUser();
@@ -85,6 +92,8 @@ export const getCurrentUserProfile = async (): Promise<Profile | null> => {
 };
 
 export const getProfileByUsername = async (username: string): Promise<Profile | null> => {
+  if (!supabase) return null;
+  
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
@@ -95,6 +104,8 @@ export const getProfileByUsername = async (username: string): Promise<Profile | 
 };
 
 export const updateUserProfile = async (userId: string, profileData: Partial<Profile>): Promise<boolean> => {
+  if (!supabase) return false;
+  
   try {
     const { error } = await supabase
       .from('profiles')
@@ -112,6 +123,8 @@ export const updateUserProfile = async (userId: string, profileData: Partial<Pro
 };
 
 export const getUserPins = async (username: string): Promise<Pin[]> => {
+  if (!supabase) return [];
+  
   const { data: pins } = await supabase
     .from('pins')
     .select('*')
@@ -141,6 +154,8 @@ export type TribeName = keyof typeof TRIBE_COLORS;
 
 // Upload image to Supabase Storage
 export const uploadImage = async (file: File, userId: string): Promise<string | null> => {
+  if (!supabase) return null;
+  
   try {
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -166,6 +181,8 @@ export const uploadImage = async (file: File, userId: string): Promise<string | 
 
 // Get public URL for uploaded image
 export const getImageUrl = (path: string): string => {
+  if (!supabase) return '';
+  
   const { data } = supabase.storage
     .from('pin-images')
     .getPublicUrl(path);
@@ -175,6 +192,8 @@ export const getImageUrl = (path: string): string => {
 
 // Delete image from storage
 export const deleteImage = async (path: string): Promise<boolean> => {
+  if (!supabase) return false;
+  
   try {
     const { error } = await supabase.storage
       .from('pin-images')

@@ -20,9 +20,16 @@ function App() {
   const [profileToViewUsername, setProfileToViewUsername] = useState('');
   const [pinToOpenOnMap, setPinToOpenOnMap] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
-  const [isConnected, setIsConnected] = useState(true);
+  const [isConnected, setIsConnected] = useState(!!supabase);
 
   useEffect(() => {
+    // Check if Supabase is configured
+    if (!supabase) {
+      console.log('❌ Supabase not configured - running in offline mode');
+      setIsConnected(false);
+      return;
+    }
+
     // Fetch initial pins
     fetchPins();
 
@@ -71,6 +78,12 @@ function App() {
   };
 
   const fetchPins = async () => {
+    if (!supabase) {
+      console.log('❌ Cannot fetch pins: Supabase not configured');
+      setIsConnected(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('pins')
@@ -99,7 +112,7 @@ function App() {
       currentUser
     });
     
-    if (!isConnected) {
+    if (!isConnected || !supabase) {
       console.log('❌ Pin creation blocked: No database connection');
       alert('Cannot add pins - database connection unavailable. Please check your Supabase configuration.');
       return;
@@ -121,7 +134,7 @@ function App() {
       currentUser
     });
     
-    if (!pendingPin || !isConnected) {
+    if (!pendingPin || !isConnected || !supabase) {
       console.log('❌ Pin creation aborted: Missing pendingPin or no connection');
       return;
     }
@@ -162,7 +175,7 @@ function App() {
   };
 
   const handleDeletePin = async (pinId: string) => {
-    if (!isConnected) {
+    if (!isConnected || !supabase) {
       alert('Cannot delete pins - database connection unavailable.');
       return;
     }
@@ -193,7 +206,7 @@ function App() {
       isConnected
     });
 
-    if (!isConnected) {
+    if (!isConnected || !supabase) {
       console.log('❌ Like blocked: No database connection');
       alert('Cannot like pins - database connection unavailable.');
       return;
@@ -252,7 +265,7 @@ function App() {
   };
 
   const handleCommentPin = async (pinId: string, comment: string) => {
-    if (!isConnected) {
+    if (!isConnected || !supabase) {
       alert('Cannot add comments - database connection unavailable.');
       return;
     }
@@ -363,7 +376,7 @@ function App() {
 
       {!isConnected && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-          Database connection unavailable. Please check your Supabase configuration.
+          Database connection unavailable. Please configure Supabase to enable full functionality.
         </div>
       )}
     </div>
