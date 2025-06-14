@@ -236,7 +236,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onGuestContinue }) => {
           </button>
 
           <p className="text-xs text-gray-400 text-center mt-3">
-            Guest accounts have limited features and cannot change usernames
+            Guest accounts have limited features.
           </p>
         </div>
 
