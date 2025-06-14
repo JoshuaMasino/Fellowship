@@ -4,8 +4,9 @@ import PinCreationModal from './components/UI/PinCreationModal';
 import FloatingControls from './components/UI/FloatingControls';
 import UserProfileModal from './components/UI/UserProfileModal';
 import ExploreModal from './components/UI/ExploreModal';
+import ChatWindow from './components/UI/ChatWindow';
 import AuthPage from './components/Auth/AuthPage';
-import { Pin, supabase } from './lib/supabase';
+import { Pin, supabase, getCurrentUserProfile } from './lib/supabase';
 import { getGuestUsername, setGuestUsername } from './lib/storage';
 
 function App() {
@@ -14,14 +15,19 @@ function App() {
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
   const [isExploreModalOpen, setIsExploreModalOpen] = useState(false);
+  const [isChatWindowOpen, setIsChatWindowOpen] = useState(false);
   const [isAuthPageOpen, setIsAuthPageOpen] = useState(false);
   const [profileToViewUsername, setProfileToViewUsername] = useState('');
   const [pinToOpenOnMap, setPinToOpenOnMap] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
   const [firstClickLocation, setFirstClickLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isConnected, setIsConnected] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    // Check authentication status
+    checkAuthStatus();
+    
     // Fetch initial pins
     fetchPins();
 
@@ -37,7 +43,7 @@ function App() {
     
     if (isConnected) {
       subscription = supabase
-        .channel('pins')
+        ?.channel('pins')
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'pins' },
           () => {
@@ -55,6 +61,25 @@ function App() {
     };
   }, [isConnected]);
 
+  const checkAuthStatus = async () => {
+    if (!supabase) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsAuthenticated(!!user);
+      
+      if (user) {
+        const profile = await getCurrentUserProfile();
+        if (profile) {
+          setCurrentUser(profile.username);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setIsAuthenticated(false);
+    }
+  };
+
   const handleOpenUserProfile = (username: string) => {
     setProfileToViewUsername(username);
     setIsUserProfileModalOpen(true);
@@ -69,7 +94,17 @@ function App() {
     setIsExploreModalOpen(true);
   };
 
+  const handleOpenChatWindow = () => {
+    setIsChatWindowOpen(true);
+  };
+
   const fetchPins = async () => {
+    if (!supabase) {
+      setIsConnected(false);
+      setPins([]);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('pins')
@@ -130,7 +165,7 @@ function App() {
       currentUser
     });
     
-    if (!pendingPin || !isConnected) {
+    if (!pendingPin || !isConnected || !supabase) {
       console.log('❌ Pin creation aborted: Missing pendingPin or no connection');
       return;
     }
@@ -138,7 +173,7 @@ function App() {
     try {
       // Check if user is authenticated
       const { data: { user } } = await supabase.auth.getUser();
-      const isAuthenticated = !!user;
+      const isUserAuthenticated = !!user;
       
       console.log('📤 Sending pin to Supabase...');
       const { data, error } = await supabase
@@ -152,7 +187,7 @@ function App() {
             images,
             pin_color: pinColor || '#FFFC00',
             storage_paths: storagePaths || [],
-            is_authenticated: isAuthenticated,
+            is_authenticated: isUserAuthenticated,
           }
         ]);
 
@@ -171,7 +206,7 @@ function App() {
   };
 
   const handleDeletePin = async (pinId: string) => {
-    if (!isConnected) {
+    if (!isConnected || !supabase) {
       alert('Cannot delete pins - database connection unavailable.');
       return;
     }
@@ -202,7 +237,7 @@ function App() {
       isConnected
     });
 
-    if (!isConnected) {
+    if (!isConnected || !supabase) {
       console.log('❌ Like blocked: No database connection');
       alert('Cannot like pins - database connection unavailable.');
       return;
@@ -261,7 +296,7 @@ function App() {
   };
 
   const handleCommentPin = async (pinId: string, comment: string) => {
-    if (!isConnected) {
+    if (!isConnected || !supabase) {
       alert('Cannot add comments - database connection unavailable.');
       return;
     }
@@ -332,6 +367,7 @@ function App() {
       <FloatingControls
         onOpenUserProfile={() => handleOpenUserProfile(currentUser)}
         onOpenExploreModal={handleOpenExploreModal}
+        onOpenChatWindow={handleOpenChatWindow}
         totalPins={pins.length}
         currentUser={currentUser}
       />
@@ -367,6 +403,13 @@ function App() {
         }}
         onOpenUserProfile={handleOpenUserProfile}
         currentUser={currentUser}
+      />
+
+      <ChatWindow
+        isOpen={isChatWindowOpen}
+        onClose={() => setIsChatWindowOpen(false)}
+        currentUser={currentUser}
+        isAuthenticated={isAuthenticated}
       />
 
       {!isConnected && (

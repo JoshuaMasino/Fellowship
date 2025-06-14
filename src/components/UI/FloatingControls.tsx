@@ -1,9 +1,10 @@
 import React from 'react';
-import { User, MapPin, Zap } from 'lucide-react';
+import { User, MapPin, Zap, MessageSquare } from 'lucide-react';
 
 interface FloatingControlsProps {
   onOpenUserProfile: () => void;
   onOpenExploreModal: () => void;
+  onOpenChatWindow: () => void;
   totalPins: number;
   currentUser: string;
 }
@@ -11,6 +12,7 @@ interface FloatingControlsProps {
 const FloatingControls: React.FC<FloatingControlsProps> = ({
   onOpenUserProfile,
   onOpenExploreModal,
+  onOpenChatWindow,
   totalPins,
   currentUser,
 }) => {
@@ -23,6 +25,15 @@ const FloatingControls: React.FC<FloatingControlsProps> = ({
         title="View your profile & settings"
       >
         <User className="w-6 h-6 text-blue-700 icon-shadow-white-sm" />
+      </button>
+
+      {/* Chat Button */}
+      <button
+        onClick={onOpenChatWindow}
+        className="w-14 h-14 glass-blue rounded-full shadow-xl flex items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200 pointer-events-auto"
+        title="Open chat"
+      >
+        <MessageSquare className="w-6 h-6 text-blue-700 icon-shadow-white-sm" />
       </button>
 
       {/* Stats Panel - Now Clickable for Explore */}
