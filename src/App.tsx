@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import MapComponent from './components/Map/MapContainer';
-import UserPanel from './components/UI/UserPanel';
 import PinCreationModal from './components/UI/PinCreationModal';
 import FloatingControls from './components/UI/FloatingControls';
 import UserProfileModal from './components/UI/UserProfileModal';
@@ -12,7 +11,6 @@ import { getGuestUsername, setGuestUsername } from './lib/storage';
 function App() {
   const [pins, setPins] = useState<Pin[]>([]);
   const [currentUser, setCurrentUser] = useState<string>(getGuestUsername());
-  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isUserProfileModalOpen, setIsUserProfileModalOpen] = useState(false);
   const [isExploreModalOpen, setIsExploreModalOpen] = useState(false);
@@ -332,18 +330,10 @@ function App() {
       
       {/* UI Layer - positioned above the map */}
       <FloatingControls
-        onUserPanelOpen={() => setIsUserPanelOpen(true)}
         onOpenUserProfile={() => handleOpenUserProfile(currentUser)}
         onOpenExploreModal={handleOpenExploreModal}
         totalPins={pins.length}
         currentUser={currentUser}
-      />
-
-      <UserPanel
-        username={currentUser}
-        onUsernameChange={handleUsernameChange}
-        isOpen={isUserPanelOpen}
-        onClose={() => setIsUserPanelOpen(false)}
       />
 
       <PinCreationModal
@@ -363,6 +353,7 @@ function App() {
         username={profileToViewUsername}
         currentUser={currentUser}
         onSelectPin={handleSelectPinFromProfile}
+        onUsernameChange={handleUsernameChange}
         isCurrentUserAdmin={false}
       />
 

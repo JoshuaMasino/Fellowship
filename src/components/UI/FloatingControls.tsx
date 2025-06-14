@@ -1,8 +1,7 @@
 import React from 'react';
-import { User, Plus, MapPin, Zap } from 'lucide-react';
+import { User, MapPin, Zap } from 'lucide-react';
 
 interface FloatingControlsProps {
-  onUserPanelOpen: () => void;
   onOpenUserProfile: () => void;
   onOpenExploreModal: () => void;
   totalPins: number;
@@ -10,7 +9,6 @@ interface FloatingControlsProps {
 }
 
 const FloatingControls: React.FC<FloatingControlsProps> = ({
-  onUserPanelOpen,
   onOpenUserProfile,
   onOpenExploreModal,
   totalPins,
@@ -22,22 +20,9 @@ const FloatingControls: React.FC<FloatingControlsProps> = ({
       <button
         onClick={onOpenUserProfile}
         className="w-14 h-14 glass-blue rounded-full shadow-xl flex items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200 pointer-events-auto"
-        title="View your profile"
+        title="View your profile & settings"
       >
         <User className="w-6 h-6 text-blue-700 icon-shadow-white-sm" />
-      </button>
-
-      {/* Settings Panel Button */}
-      <button
-        onClick={onUserPanelOpen}
-        className="w-14 h-14 glass-blue rounded-full shadow-xl flex items-center justify-center hover:bg-blue-200/30 hover:scale-105 transition-all duration-200 pointer-events-auto"
-        title="Settings"
-      >
-        <div className="w-6 h-6 flex items-center justify-center">
-          <div className="w-1 h-1 bg-blue-700 rounded-full icon-shadow-white-sm"></div>
-          <div className="w-1 h-1 bg-blue-700 rounded-full mx-1 icon-shadow-white-sm"></div>
-          <div className="w-1 h-1 bg-blue-700 rounded-full icon-shadow-white-sm"></div>
-        </div>
       </button>
 
       {/* Stats Panel - Now Clickable for Explore */}
@@ -53,7 +38,6 @@ const FloatingControls: React.FC<FloatingControlsProps> = ({
       {/* Help Text */}
       <div className="glass-blue rounded-2xl shadow-xl p-3 text-center max-w-[200px] pointer-events-auto">
         <div className="flex items-center justify-center space-x-1 mb-1">
-          <Plus className="w-4 h-4 text-blue-800 icon-shadow-white-sm" />
           <MapPin className="w-4 h-4 text-blue-800 icon-shadow-white-sm" />
         </div>
         <div className="text-xs font-medium text-blue-800 text-shadow-white-sm">

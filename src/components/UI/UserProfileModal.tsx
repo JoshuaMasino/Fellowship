@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, MapPin, X } from 'lucide-react';
+import { User, MapPin, X, Settings } from 'lucide-react';
 import { Pin, getUserPins } from '../../lib/supabase';
 
 interface UserProfileModalProps {
@@ -8,6 +8,7 @@ interface UserProfileModalProps {
   username: string;
   currentUser: string;
   onSelectPin: (pinId: string) => void;
+  onUsernameChange: (newUsername: string) => void;
   isCurrentUserAdmin?: boolean;
 }
 
@@ -17,10 +18,13 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
   username,
   currentUser,
   onSelectPin,
+  onUsernameChange,
   isCurrentUserAdmin = false,
 }) => {
   const [userPins, setUserPins] = useState<Pin[]>([]);
   const [loading, setLoading] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
 
   const isOwnProfile = username === currentUser;
   const isGuestUser = username.match(/^\d{7}$/);
@@ -40,6 +44,14 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
       console.error('Error fetching profile data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUsernameSubmit = () => {
+    if (newUsername.trim() && newUsername.length === 7 && /^\d+$/.test(newUsername)) {
+      onUsernameChange(newUsername);
+      setIsEditingUsername(false);
+      setNewUsername('');
     }
   };
 
@@ -101,6 +113,65 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               Guest user
             </p>
 
+            {/* Username Settings - Only for own profile */}
+            {isOwnProfile && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-200 flex items-center space-x-2">
+                    <Settings className="w-5 h-5" />
+                    <span>Settings</span>
+                  </h3>
+                  <button
+                    onClick={() => setIsEditingUsername(!isEditingUsername)}
+                    className="text-orange-500 hover:text-orange-600 transition-colors text-sm font-medium"
+                  >
+                    {isEditingUsername ? 'Cancel' : 'Change Username'}
+                  </button>
+                </div>
+                
+                {isEditingUsername ? (
+                  <div className="space-y-3 bg-gray-800 rounded-lg p-4">
+                    <input
+                      type="text"
+                      value={newUsername}
+                      onChange={(e) => setNewUsername(e.target.value)}
+                      placeholder="Enter 7-digit username"
+                      maxLength={7}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-200 placeholder:text-gray-400"
+                    />
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={handleUsernameSubmit}
+                        disabled={!newUsername.trim() || newUsername.length !== 7 || !/^\d+$/.test(newUsername)}
+                        className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                      >
+                        Update Username
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsEditingUsername(false);
+                          setNewUsername('');
+                        }}
+                        className="flex-1 px-4 py-2 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Username must be exactly 7 digits
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-gray-800 rounded-lg p-4">
+                    <p className="text-gray-200 font-mono text-lg">Guest {username}</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Your current guest username
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Authentication Button for Current User */}
             {isOwnProfile && (
               <div className="mb-4">
@@ -144,6 +215,9 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <div className="text-center py-8 text-gray-400">
                 <MapPin className="w-12 h-12 mx-auto mb-3 opacity-50" />
                 <p>No pins created yet</p>
+                {isOwnProfile && (
+                  <p className="text-sm">Tap on the map to create your first pin!</p>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 max-h-64 overflow-y-auto">
