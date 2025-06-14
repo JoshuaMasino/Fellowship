@@ -126,8 +126,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onGuestContinue }) => {
           <div className="w-20 h-20 bg-yellow-400 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl">
             <MapPin className="w-10 h-10 text-gray-800 icon-shadow-white-md" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2 text-shadow-white-md">SnapMap</h1>
-          <p className="text-blue-100 text-shadow-white-sm">Share your moments, explore the world</p>
+          <h1 className="text-4xl font-bold text-white mb-2 text-shadow-white-md">Fellowship Finder</h1>
+          <p className="text-blue-100 text-shadow-white-sm">Connect communities, share locations</p>
         </div>
 
         {/* Auth Form */}
