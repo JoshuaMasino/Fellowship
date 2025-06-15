@@ -230,7 +230,7 @@ function App() {
     
     if (!pendingPin || !isConnected || !supabase) {
       console.log('❌ Pin creation aborted: Missing pendingPin or no connection');
-      return;
+      throw new Error('Cannot create pin - missing location or database connection unavailable');
     }
 
     try {
@@ -261,16 +261,15 @@ function App() {
 
       if (error) {
         console.error('❌ Supabase insert error:', error);
+        throw new Error(error.message);
       } else {
         console.log('✅ Pin created successfully:', data);
         fetchPins();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('💥 Failed to create pin:', err);
-      alert('Failed to create pin - database connection unavailable.');
+      throw err; // Re-throw the error so the modal can catch it
     }
-
-    setPendingPin(null);
   };
 
   const handleDeletePin = async (pinId: string) => {

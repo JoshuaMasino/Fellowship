@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, Camera, Plus, Upload, Palette, UserPlus, Globe } from 'lucide-react';
+import { X, MapPin, Camera, Plus, Upload, Palette, UserPlus, Globe, AlertCircle } from 'lucide-react';
 import { supabase, uploadImage, getImageUrl, TRIBE_COLORS, TribeName } from '../../lib/supabase';
 import { reverseGeocode, LocationData } from '../../lib/geocoding';
 
 interface PinCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (description: string, images: string[], pinColor?: string, storagePaths?: string[], locationData?: LocationData) => void;
+  onSubmit: (description: string, images: string[], pinColor?: string, storagePaths?: string[], locationData?: LocationData) => Promise<void>;
   lat: number;
   lng: number;
 }
@@ -28,6 +28,8 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
   const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
   const [locationData, setLocationData] = useState<LocationData>({});
   const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -54,12 +56,24 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
     }
   };
 
-  const handleSubmit = () => {
-    if (description.trim()) {
+  const handleSubmit = async () => {
+    if (!description.trim()) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
       const pinColor = TRIBE_COLORS[selectedTribe];
-      onSubmit(description.trim(), images, pinColor, uploadedPaths, locationData);
+      await onSubmit(description.trim(), images, pinColor, uploadedPaths, locationData);
+      
+      // Only reset and close if submission was successful
       resetForm();
       onClose();
+    } catch (error: any) {
+      console.error('Pin creation failed:', error);
+      setSubmitError(error.message || 'Failed to create pin. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -70,6 +84,7 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
     setSelectedTribe('Dan');
     setUploadedPaths([]);
     setLocationData({});
+    setSubmitError(null);
   };
 
   const handleAddImageUrl = () => {
@@ -181,6 +196,16 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
                 <Camera className="w-4 h-4" />
                 <span>Authenticated user - Upload images and choose pin colors!</span>
               </p>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {submitError && (
+            <div className="mb-4 p-3 bg-red-900/30 border border-red-700 rounded-lg">
+              <div className="flex items-center space-x-2 text-red-300">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <p className="text-sm">{submitError}</p>
+              </div>
             </div>
           )}
 
@@ -396,16 +421,17 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
                 resetForm();
                 onClose();
               }}
-              className="flex-1 px-4 py-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-3 bg-gray-700 text-gray-200 rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!description.trim() || uploading || isGeocodingLocation}
+              disabled={!description.trim() || uploading || isGeocodingLocation || isSubmitting}
               className="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-lg hover:from-yellow-500 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
-              {uploading ? 'Uploading...' : isGeocodingLocation ? 'Processing...' : 'Create Pin'}
+              {isSubmitting ? 'Creating...' : uploading ? 'Uploading...' : isGeocodingLocation ? 'Processing...' : 'Create Pin'}
             </button>
           </div>
         </div>
