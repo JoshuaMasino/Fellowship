@@ -58,15 +58,23 @@ function App() {
         subscription.unsubscribe();
       };
     }
+  }, []);
 
-    // Listen for auth open events from profile modal
+  // Separate useEffect for auth event listener - only set up once
+  useEffect(() => {
     const handleOpenAuth = () => {
       setIsAuthPageOpen(true);
     };
 
     window.addEventListener('openAuth', handleOpenAuth);
 
-    // Set up real-time subscription only if connected
+    return () => {
+      window.removeEventListener('openAuth', handleOpenAuth);
+    };
+  }, []); // Empty dependency array - only run once on mount
+
+  // Separate useEffect for real-time subscription
+  useEffect(() => {
     let subscription: any = null;
     
     if (isConnected) {
@@ -82,7 +90,6 @@ function App() {
     }
 
     return () => {
-      window.removeEventListener('openAuth', handleOpenAuth);
       if (subscription) {
         subscription.unsubscribe();
       }
