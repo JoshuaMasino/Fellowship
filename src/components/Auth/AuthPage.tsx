@@ -122,7 +122,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onCloseAuth }) => {
             <MapPin className="w-10 h-10 text-gray-800 icon-shadow-white-md" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2 text-shadow-white-md">Fellowship Finder</h1>
-          <p className="text-blue-100 text-shadow-white-sm">Connecting Christian Communities & sharing the love of YHWH</p>
+          <p className="text-blue-100 text-shadow-white-sm">Connecting Christian communities & sharing the love of YHWH</p>
         </div>
 
         {/* Auth Form */}
