@@ -59,7 +59,8 @@ const createClusterCustomIcon = (cluster: any) => {
       <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 ${iconSize} ${iconSize}" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2 - 2}" fill="${color}" stroke="white" stroke-width="3"/>
         <text x="${iconSize/2}" y="${iconSize/2}" text-anchor="middle" dominant-baseline="central" 
-              fill="white" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold">
+              fill="black" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold"
+              stroke="white" stroke-width="3" paint-order="stroke fill">
           ${count}
         </text>
       </svg>
