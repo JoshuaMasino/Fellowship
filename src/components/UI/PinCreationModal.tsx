@@ -116,6 +116,14 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
     }
   };
 
+  const handleSignupClick = () => {
+    // Close the pin creation modal first
+    resetForm();
+    onClose();
+    // Then open the auth page
+    window.dispatchEvent(new CustomEvent('openAuth'));
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -226,21 +234,24 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
               Images (up to 3)
             </label>
             
-            {/* Guest Signup Reminder */}
+            {/* Guest Signup Reminder - Now Clickable */}
             {!isAuthenticated && (
-              <div className="mb-4 p-4 bg-blue-900/30 border border-blue-700 rounded-lg">
+              <button
+                onClick={handleSignupClick}
+                className="w-full mb-4 p-4 bg-blue-900/30 border border-blue-700 rounded-lg hover:bg-blue-900/40 transition-colors cursor-pointer group"
+              >
                 <div className="flex items-start space-x-3">
-                  <UserPlus className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-blue-300 text-sm font-medium mb-1">
+                  <UserPlus className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5 group-hover:text-blue-300 transition-colors" />
+                  <div className="text-left">
+                    <p className="text-blue-300 text-sm font-medium mb-1 group-hover:text-blue-200 transition-colors">
                       Sign up to unlock image uploads!
                     </p>
-                    <p className="text-blue-200 text-xs">
+                    <p className="text-blue-200 text-xs group-hover:text-blue-100 transition-colors">
                       If you would like to post images with your pin and access more features please sign up for an account
                     </p>
                   </div>
                 </div>
-              </div>
+              </button>
             )}
             
             {/* File Upload - Only for authenticated users */}
