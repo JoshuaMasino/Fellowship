@@ -6,33 +6,98 @@ const cors = require('cors');
 const app = express();
 const server = http.createServer(app);
 
-// Configure CORS for Socket.IO
+// Dynamic CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // In production, check against allowed origins
+    const allowedOrigins = [
+      'http://localhost:5173',
+      'https://localhost:5173',
+      'http://localhost:3000',
+      'http://127.0.0.1:5173'
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ["GET", "POST"],
+  credentials: true
+};
+
+// Configure CORS for Socket.IO with dynamic origin support
 const io = socketIo(server, {
-  cors: {
-    origin: ["http://localhost:5173", "https://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
-    methods: ["GET", "POST"],
-    credentials: true
-  }
+  cors: corsOptions
 });
 
 // Middleware
-app.use(cors({
-  origin: ["http://localhost:5173", "https://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
-  credentials: true
-}));
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Store connected users and their socket IDs
 const connectedUsers = new Map();
 const userSockets = new Map();
 
+// In-memory message storage (in production, use a database)
+const messageStore = new Map(); // key: conversationId, value: array of messages
+
+// Helper function to get conversation ID
+function getConversationId(user1, user2) {
+  return [user1, user2].sort().join('_');
+}
+
+// Helper function to store message
+function storeMessage(from, to, message, timestamp) {
+  const conversationId = getConversationId(from, to);
+  if (!messageStore.has(conversationId)) {
+    messageStore.set(conversationId, []);
+  }
+  
+  const messageData = {
+    id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    from,
+    to,
+    message,
+    timestamp,
+    delivered: false,
+    read: false
+  };
+  
+  messageStore.get(conversationId).push(messageData);
+  return messageData;
+}
+
+// Helper function to get conversation messages
+function getConversationMessages(user1, user2) {
+  const conversationId = getConversationId(user1, user2);
+  return messageStore.get(conversationId) || [];
+}
+
 // Basic health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     connectedUsers: connectedUsers.size,
+    totalMessages: Array.from(messageStore.values()).reduce((total, messages) => total + messages.length, 0),
     timestamp: new Date().toISOString()
   });
+});
+
+// API endpoint to get conversation history
+app.get('/api/messages/:user1/:user2', (req, res) => {
+  const { user1, user2 } = req.params;
+  const messages = getConversationMessages(user1, user2);
+  res.json({ messages });
 });
 
 // Socket.IO connection handling
@@ -56,44 +121,84 @@ io.on('connection', (socket) => {
     socket.join(`user_${username}`);
     
     console.log(`📊 Total connected users: ${connectedUsers.size}`);
+    
+    // Send any undelivered messages to the user
+    deliverPendingMessages(username);
   });
+
+  // Function to deliver pending messages
+  function deliverPendingMessages(username) {
+    // Check all conversations for undelivered messages to this user
+    for (const [conversationId, messages] of messageStore.entries()) {
+      const undeliveredMessages = messages.filter(msg => 
+        msg.to === username && !msg.delivered
+      );
+      
+      undeliveredMessages.forEach(msg => {
+        socket.emit('private_message', msg);
+        msg.delivered = true;
+        console.log(`📬 Delivered pending message to ${username} from ${msg.from}`);
+      });
+    }
+  }
 
   // Handle private messages
   socket.on('private_message', (messageData) => {
     const { to, from, message, timestamp } = messageData;
     console.log(`💬 Private message from ${from} to ${to}: ${message}`);
     
-    // Send message to recipient if they're online
+    // Store the message
+    const storedMessage = storeMessage(from, to, message, timestamp);
+    
+    // Check if recipient is online
     const recipient = connectedUsers.get(to);
     if (recipient) {
-      // Send to recipient
-      io.to(`user_${to}`).emit('private_message', {
-        from,
-        to,
-        message,
-        timestamp,
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      });
+      // Send to recipient immediately
+      io.to(`user_${to}`).emit('private_message', storedMessage);
+      storedMessage.delivered = true;
       
       // Send confirmation back to sender
       socket.emit('message_sent', {
         to,
         message,
         timestamp,
-        status: 'delivered'
+        status: 'delivered',
+        messageId: storedMessage.id
       });
       
       console.log(`✅ Message delivered to ${to}`);
     } else {
-      // User is offline, send error back to sender
-      socket.emit('message_error', {
+      // User is offline, message is stored and will be delivered when they come online
+      socket.emit('message_sent', {
         to,
         message,
-        error: 'User is offline',
-        timestamp
+        timestamp,
+        status: 'stored',
+        messageId: storedMessage.id
       });
       
-      console.log(`❌ User ${to} is offline`);
+      console.log(`📦 Message stored for offline user ${to}`);
+    }
+  });
+
+  // Handle message read receipts
+  socket.on('message_read', (data) => {
+    const { messageId, conversationId } = data;
+    const messages = messageStore.get(conversationId);
+    if (messages) {
+      const message = messages.find(msg => msg.id === messageId);
+      if (message) {
+        message.read = true;
+        // Notify sender that message was read
+        const sender = connectedUsers.get(message.from);
+        if (sender) {
+          io.to(sender.socketId).emit('message_read_receipt', {
+            messageId,
+            readBy: message.to,
+            readAt: new Date().toISOString()
+          });
+        }
+      }
     }
   });
 
@@ -111,6 +216,19 @@ io.on('connection', (socket) => {
     const recipient = connectedUsers.get(to);
     if (recipient) {
       io.to(`user_${to}`).emit('user_typing', { from, typing: false });
+    }
+  });
+
+  // Handle conversation history request
+  socket.on('get_conversation', (data) => {
+    const { with: otherUser } = data;
+    const username = userSockets.get(socket.id);
+    if (username) {
+      const messages = getConversationMessages(username, otherUser);
+      socket.emit('conversation_history', {
+        with: otherUser,
+        messages
+      });
     }
   });
 
@@ -145,7 +263,8 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Fellowship Finder Chat Server running on port ${PORT}`);
   console.log(`📡 Socket.IO server ready for connections`);
-  console.log(`🌐 CORS enabled for localhost:5173 (HTTP/HTTPS), localhost:3000, 127.0.0.1:5173`);
+  console.log(`🌐 CORS enabled for dynamic origins in development`);
+  console.log(`💾 Message persistence enabled`);
 });
 
 // Graceful shutdown
