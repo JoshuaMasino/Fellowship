@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMapEvents, Marker, Popup } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
-import { LatLng, Icon, Map as LeafletMap } from 'leaflet';
+import { LatLng, Icon, Map as LeafletMap, LatLngBounds } from 'leaflet';
 import { Plus, Minus, Layers, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { Pin } from '../../lib/supabase';
@@ -122,6 +122,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
   const [isPinPopupOpen, setIsPinPopupOpen] = useState(false);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
 
+  // Define world bounds to prevent infinite scrolling
+  const worldBounds = new LatLngBounds([-90, -180], [90, 180]);
+
   // Map tile layer configurations
   const tileLayerConfig = {
     osm: {
@@ -208,6 +211,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
         center={[40.7128, -74.0060]} // NYC coordinates
         zoom={13}
         minZoom={1} // Prevent zooming out beyond world view
+        maxBounds={worldBounds} // Restrict panning to world bounds
+        maxBoundsViscosity={1.0} // Make bounds enforcement strict
         style={{ height: '100%', width: '100%' }}
         ref={mapRef}
         zoomControl={false}
@@ -215,6 +220,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         <TileLayer
           attribution={tileLayerConfig[mapType].attribution}
           url={tileLayerConfig[mapType].url}
+          noWrap={true} // Prevent tile wrapping
         />
         <MapEvents onMapClick={handleMapClick} isPinPopupOpen={isPinPopupOpen} />
         
