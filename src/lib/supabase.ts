@@ -23,6 +23,11 @@ export type Pin = {
   created_at: string;
   likes_count?: number;
   comments_count?: number;
+  // New location fields
+  continent?: string;
+  country?: string;
+  state?: string;
+  locality?: string;
 };
 
 export type Like = {

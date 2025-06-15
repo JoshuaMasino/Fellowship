@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, Camera, Plus, Upload, Palette, UserPlus } from 'lucide-react';
+import { X, MapPin, Camera, Plus, Upload, Palette, UserPlus, Globe } from 'lucide-react';
 import { supabase, uploadImage, getImageUrl, TRIBE_COLORS, TribeName } from '../../lib/supabase';
+import { reverseGeocode, LocationData } from '../../lib/geocoding';
 
 interface PinCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (description: string, images: string[], pinColor?: string, storagePaths?: string[]) => void;
+  onSubmit: (description: string, images: string[], pinColor?: string, storagePaths?: string[], locationData?: LocationData) => void;
   lat: number;
   lng: number;
 }
@@ -25,12 +26,15 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadedPaths, setUploadedPaths] = useState<string[]>([]);
+  const [locationData, setLocationData] = useState<LocationData>({});
+  const [isGeocodingLocation, setIsGeocodingLocation] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       checkAuthStatus();
+      fetchLocationData();
     }
-  }, [isOpen]);
+  }, [isOpen, lat, lng]);
 
   const checkAuthStatus = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -38,10 +42,22 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
     setCurrentUser(user);
   };
 
+  const fetchLocationData = async () => {
+    setIsGeocodingLocation(true);
+    try {
+      const location = await reverseGeocode(lat, lng);
+      setLocationData(location);
+    } catch (error) {
+      console.error('Failed to fetch location data:', error);
+    } finally {
+      setIsGeocodingLocation(false);
+    }
+  };
+
   const handleSubmit = () => {
     if (description.trim()) {
       const pinColor = TRIBE_COLORS[selectedTribe];
-      onSubmit(description.trim(), images, pinColor, uploadedPaths);
+      onSubmit(description.trim(), images, pinColor, uploadedPaths, locationData);
       resetForm();
       onClose();
     }
@@ -53,6 +69,7 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
     setImageUrl('');
     setSelectedTribe('Dan');
     setUploadedPaths([]);
+    setLocationData({});
   };
 
   const handleAddImageUrl = () => {
@@ -166,6 +183,50 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
               </p>
             </div>
           )}
+
+          {/* Location Information */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-200 mb-2">
+              <div className="flex items-center space-x-2">
+                <Globe className="w-4 h-4" />
+                <span>Location</span>
+              </div>
+            </label>
+            <div className="bg-gray-800 border border-gray-700 rounded-lg p-3">
+              {isGeocodingLocation ? (
+                <div className="flex items-center space-x-2 text-gray-400">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm">Looking up location...</span>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {locationData.locality && (
+                    <p className="text-sm text-gray-200">
+                      <span className="text-gray-400">City:</span> {locationData.locality}
+                    </p>
+                  )}
+                  {locationData.state && (
+                    <p className="text-sm text-gray-200">
+                      <span className="text-gray-400">State:</span> {locationData.state}
+                    </p>
+                  )}
+                  {locationData.country && (
+                    <p className="text-sm text-gray-200">
+                      <span className="text-gray-400">Country:</span> {locationData.country}
+                    </p>
+                  )}
+                  {locationData.continent && (
+                    <p className="text-sm text-gray-200">
+                      <span className="text-gray-400">Continent:</span> {locationData.continent}
+                    </p>
+                  )}
+                  {!locationData.locality && !locationData.state && !locationData.country && !locationData.continent && (
+                    <p className="text-sm text-gray-400">Location information not available</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Description */}
           <div className="mb-6">
@@ -341,10 +402,10 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
             </button>
             <button
               onClick={handleSubmit}
-              disabled={!description.trim() || uploading}
+              disabled={!description.trim() || uploading || isGeocodingLocation}
               className="flex-1 px-4 py-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-lg hover:from-yellow-500 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
             >
-              {uploading ? 'Uploading...' : 'Create Pin'}
+              {uploading ? 'Uploading...' : isGeocodingLocation ? 'Processing...' : 'Create Pin'}
             </button>
           </div>
         </div>

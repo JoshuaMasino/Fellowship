@@ -9,6 +9,7 @@ import AuthPage from './components/Auth/AuthPage';
 import SignOutConfirmationModal from './components/UI/SignOutConfirmationModal';
 import { Pin, supabase, getCurrentUserProfile } from './lib/supabase';
 import { getGuestUsername, setGuestUsername } from './lib/storage';
+import { LocationData } from './lib/geocoding';
 
 function App() {
   const [pins, setPins] = useState<Pin[]>([]);
@@ -215,12 +216,13 @@ function App() {
     }
   };
 
-  const handleCreatePin = async (description: string, images: string[], pinColor?: string, storagePaths?: string[]) => {
+  const handleCreatePin = async (description: string, images: string[], pinColor?: string, storagePaths?: string[], locationData?: LocationData) => {
     console.log('💾 Creating pin with data:', {
       description,
       images,
       pinColor,
       storagePaths,
+      locationData,
       pendingPin,
       isConnected,
       currentUser
@@ -249,6 +251,11 @@ function App() {
             pin_color: pinColor || '#FFFC00',
             storage_paths: storagePaths || [],
             is_authenticated: isUserAuthenticated,
+            // Add location data
+            continent: locationData?.continent || null,
+            country: locationData?.country || null,
+            state: locationData?.state || null,
+            locality: locationData?.locality || null,
           }
         ]);
 

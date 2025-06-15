@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, User, Heart, MessageCircle, Search, Filter } from 'lucide-react';
+import { X, MapPin, User, Heart, MessageCircle, Search, Filter, Globe, ChevronDown } from 'lucide-react';
 import { Pin, supabase } from '../../lib/supabase';
+import { getUniqueLocations } from '../../lib/geocoding';
+
+interface LocationFilters {
+  continent: string;
+  country: string;
+  state: string;
+  locality: string;
+}
 
 interface ExploreModalProps {
   isOpen: boolean;
@@ -20,13 +28,27 @@ const ExploreModal: React.FC<ExploreModalProps> = ({
   currentUser,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most-liked'>('newest');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'most-liked'>('most-liked'); // Default to most-liked
+  const [locationFilters, setLocationFilters] = useState<LocationFilters>({
+    continent: '',
+    country: '',
+    state: '',
+    locality: '',
+  });
+  const [showLocationFilters, setShowLocationFilters] = useState(false);
   const [likeCounts, setLikeCounts] = useState<{ [key: string]: number }>({});
   const [commentCounts, setCommentCounts] = useState<{ [key: string]: number }>({});
+  const [uniqueLocations, setUniqueLocations] = useState({
+    continents: [] as string[],
+    countries: [] as string[],
+    states: [] as string[],
+    localities: [] as string[],
+  });
 
   useEffect(() => {
     if (isOpen) {
       fetchEngagementData();
+      setUniqueLocations(getUniqueLocations(pins));
     }
   }, [isOpen, pins]);
 
@@ -64,10 +86,19 @@ const ExploreModal: React.FC<ExploreModalProps> = ({
   };
 
   const filteredAndSortedPins = pins
-    .filter(pin => 
-      pin.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pin.username.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    .filter(pin => {
+      // Text search filter
+      const matchesSearch = pin.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pin.username.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Location filters
+      const matchesContinent = !locationFilters.continent || pin.continent === locationFilters.continent;
+      const matchesCountry = !locationFilters.country || pin.country === locationFilters.country;
+      const matchesState = !locationFilters.state || pin.state === locationFilters.state;
+      const matchesLocality = !locationFilters.locality || pin.locality === locationFilters.locality;
+      
+      return matchesSearch && matchesContinent && matchesCountry && matchesState && matchesLocality;
+    })
     .sort((a, b) => {
       if (sortBy === 'newest') {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -99,6 +130,67 @@ const ExploreModal: React.FC<ExploreModalProps> = ({
     onClose();
   };
 
+  const handleLocationFilterChange = (filterType: keyof LocationFilters, value: string) => {
+    setLocationFilters(prev => {
+      const newFilters = { ...prev, [filterType]: value };
+      
+      // Clear dependent filters when parent filter changes
+      if (filterType === 'continent') {
+        newFilters.country = '';
+        newFilters.state = '';
+        newFilters.locality = '';
+      } else if (filterType === 'country') {
+        newFilters.state = '';
+        newFilters.locality = '';
+      } else if (filterType === 'state') {
+        newFilters.locality = '';
+      }
+      
+      return newFilters;
+    });
+  };
+
+  const clearLocationFilters = () => {
+    setLocationFilters({
+      continent: '',
+      country: '',
+      state: '',
+      locality: '',
+    });
+  };
+
+  const getFilteredOptions = (filterType: keyof LocationFilters) => {
+    let filteredPins = pins;
+    
+    // Apply parent filters
+    if (filterType === 'country' && locationFilters.continent) {
+      filteredPins = pins.filter(pin => pin.continent === locationFilters.continent);
+    } else if (filterType === 'state' && locationFilters.country) {
+      filteredPins = pins.filter(pin => 
+        pin.country === locationFilters.country &&
+        (!locationFilters.continent || pin.continent === locationFilters.continent)
+      );
+    } else if (filterType === 'locality' && locationFilters.state) {
+      filteredPins = pins.filter(pin => 
+        pin.state === locationFilters.state &&
+        (!locationFilters.country || pin.country === locationFilters.country) &&
+        (!locationFilters.continent || pin.continent === locationFilters.continent)
+      );
+    }
+    
+    const locations = getUniqueLocations(filteredPins);
+    
+    switch (filterType) {
+      case 'continent': return locations.continents;
+      case 'country': return locations.countries;
+      case 'state': return locations.states;
+      case 'locality': return locations.localities;
+      default: return [];
+    }
+  };
+
+  const hasActiveLocationFilters = Object.values(locationFilters).some(filter => filter !== '');
+
   if (!isOpen) return null;
 
   return (
@@ -129,32 +221,183 @@ const ExploreModal: React.FC<ExploreModalProps> = ({
 
         {/* Search and Filter Bar */}
         <div className="p-6 border-b border-gray-700">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search pins or users..."
-                className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder:text-gray-400"
-              />
+          <div className="flex flex-col gap-4">
+            {/* Main Search and Sort Row */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search */}
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search pins or users..."
+                  className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder:text-gray-400"
+                />
+              </div>
+
+              {/* Sort */}
+              <div className="flex items-center space-x-2">
+                <Filter className="w-5 h-5 text-gray-400" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'most-liked')}
+                  className="px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200"
+                >
+                  <option value="most-liked">Most Liked</option>
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                </select>
+              </div>
+
+              {/* Location Filter Toggle */}
+              <button
+                onClick={() => setShowLocationFilters(!showLocationFilters)}
+                className={`flex items-center space-x-2 px-4 py-3 rounded-lg border transition-colors ${
+                  showLocationFilters || hasActiveLocationFilters
+                    ? 'bg-blue-600 border-blue-500 text-white'
+                    : 'bg-gray-800 border-gray-700 text-gray-200 hover:bg-gray-700'
+                }`}
+              >
+                <Globe className="w-5 h-5" />
+                <span>Location</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showLocationFilters ? 'rotate-180' : ''}`} />
+                {hasActiveLocationFilters && (
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                )}
+              </button>
             </div>
 
-            {/* Sort */}
-            <div className="flex items-center space-x-2">
-              <Filter className="w-5 h-5 text-gray-400" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'most-liked')}
-                className="px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200"
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="most-liked">Most Liked</option>
-              </select>
-            </div>
+            {/* Location Filters */}
+            {showLocationFilters && (
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-gray-200">Filter by Location</h3>
+                  {hasActiveLocationFilters && (
+                    <button
+                      onClick={clearLocationFilters}
+                      className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {/* Continent Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Continent</label>
+                    <select
+                      value={locationFilters.continent}
+                      onChange={(e) => handleLocationFilterChange('continent', e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 text-sm"
+                    >
+                      <option value="">All Continents</option>
+                      {getFilteredOptions('continent').map(continent => (
+                        <option key={continent} value={continent}>{continent}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Country Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">Country</label>
+                    <select
+                      value={locationFilters.country}
+                      onChange={(e) => handleLocationFilterChange('country', e.target.value)}
+                      disabled={!locationFilters.continent}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">All Countries</option>
+                      {getFilteredOptions('country').map(country => (
+                        <option key={country} value={country}>{country}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* State Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">State/Province</label>
+                    <select
+                      value={locationFilters.state}
+                      onChange={(e) => handleLocationFilterChange('state', e.target.value)}
+                      disabled={!locationFilters.country}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">All States</option>
+                      {getFilteredOptions('state').map(state => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Locality Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">City/Town</label>
+                    <select
+                      value={locationFilters.locality}
+                      onChange={(e) => handleLocationFilterChange('locality', e.target.value)}
+                      disabled={!locationFilters.state}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="">All Cities</option>
+                      {getFilteredOptions('locality').map(locality => (
+                        <option key={locality} value={locality}>{locality}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {hasActiveLocationFilters && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {locationFilters.continent && (
+                      <span className="inline-flex items-center px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                        {locationFilters.continent}
+                        <button
+                          onClick={() => handleLocationFilterChange('continent', '')}
+                          className="ml-1 hover:text-gray-300"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                    {locationFilters.country && (
+                      <span className="inline-flex items-center px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                        {locationFilters.country}
+                        <button
+                          onClick={() => handleLocationFilterChange('country', '')}
+                          className="ml-1 hover:text-gray-300"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                    {locationFilters.state && (
+                      <span className="inline-flex items-center px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                        {locationFilters.state}
+                        <button
+                          onClick={() => handleLocationFilterChange('state', '')}
+                          className="ml-1 hover:text-gray-300"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                    {locationFilters.locality && (
+                      <span className="inline-flex items-center px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                        {locationFilters.locality}
+                        <button
+                          onClick={() => handleLocationFilterChange('locality', '')}
+                          className="ml-1 hover:text-gray-300"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -164,7 +407,7 @@ const ExploreModal: React.FC<ExploreModalProps> = ({
             <div className="text-center py-12 text-gray-400">
               <MapPin className="w-16 h-16 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">No pins found</p>
-              <p className="text-sm">Try adjusting your search terms</p>
+              <p className="text-sm">Try adjusting your search terms or location filters</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -225,6 +468,14 @@ const ExploreModal: React.FC<ExploreModalProps> = ({
                         </div>
                       </div>
 
+                      {/* Location Info */}
+                      {(pin.locality || pin.state || pin.country) && (
+                        <div className="mb-2 text-xs text-gray-500">
+                          <Globe className="w-3 h-3 inline mr-1" />
+                          {[pin.locality, pin.state, pin.country].filter(Boolean).join(', ')}
+                        </div>
+                      )}
+
                       {/* Description */}
                       <button
                         onClick={() => handlePinClick(pin.id)}
@@ -268,6 +519,9 @@ const ExploreModal: React.FC<ExploreModalProps> = ({
             Showing {filteredAndSortedPins.length} of {pins.length} pins
             {sortBy === 'most-liked' && (
               <span className="ml-2 text-red-400">• Sorted by most liked</span>
+            )}
+            {hasActiveLocationFilters && (
+              <span className="ml-2 text-blue-400">• Location filtered</span>
             )}
           </div>
         </div>
