@@ -9,7 +9,7 @@ const server = http.createServer(app);
 // Configure CORS for Socket.IO
 const io = socketIo(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+    origin: ["http://localhost:5173", "https://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -17,7 +17,7 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
+  origin: ["http://localhost:5173", "https://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
   credentials: true
 }));
 app.use(express.json());
@@ -33,12 +33,6 @@ app.get('/health', (req, res) => {
     connectedUsers: connectedUsers.size,
     timestamp: new Date().toISOString()
   });
-});
-
-// Get list of online users
-app.get('/users/online', (req, res) => {
-  const onlineUsers = Array.from(connectedUsers.keys());
-  res.json({ users: onlineUsers });
 });
 
 // Socket.IO connection handling
@@ -60,10 +54,6 @@ io.on('connection', (socket) => {
     
     // Join user to their own room for private messages
     socket.join(`user_${username}`);
-    
-    // Broadcast updated user list to all clients
-    const onlineUsers = Array.from(connectedUsers.keys());
-    io.emit('users_updated', onlineUsers);
     
     console.log(`📊 Total connected users: ${connectedUsers.size}`);
   });
@@ -132,10 +122,6 @@ io.on('connection', (socket) => {
       connectedUsers.delete(username);
       userSockets.delete(socket.id);
       
-      // Broadcast updated user list
-      const onlineUsers = Array.from(connectedUsers.keys());
-      io.emit('users_updated', onlineUsers);
-      
       console.log(`📊 Total connected users: ${connectedUsers.size}`);
     } else {
       console.log(`🔌 Client disconnected: ${socket.id}`);
@@ -159,7 +145,7 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Fellowship Finder Chat Server running on port ${PORT}`);
   console.log(`📡 Socket.IO server ready for connections`);
-  console.log(`🌐 CORS enabled for localhost:5173, localhost:3000, 127.0.0.1:5173`);
+  console.log(`🌐 CORS enabled for localhost:5173 (HTTP/HTTPS), localhost:3000, 127.0.0.1:5173`);
 });
 
 // Graceful shutdown

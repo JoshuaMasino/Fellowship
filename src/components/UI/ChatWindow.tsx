@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Users, MessageSquare, Wifi, WifiOff, User } from 'lucide-react';
+import { X, Send, MessageSquare, Wifi, WifiOff, User, AlertCircle } from 'lucide-react';
 import { socketService, ChatMessage, UserTyping } from '../../lib/socket';
 
 interface ChatWindowProps {
@@ -17,11 +17,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [selectedUser, setSelectedUser] = useState<string>('');
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [recipientUsername, setRecipientUsername] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [isTyping, setIsTyping] = useState(false);
+  const [messageError, setMessageError] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
@@ -47,6 +47,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     if (socket) {
       socket.on('connect', () => {
         setIsConnected(true);
+        setMessageError('');
       });
 
       socket.on('disconnect', () => {
@@ -67,17 +68,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           timestamp: data.timestamp
         };
         setMessages(prev => [...prev, sentMessage]);
+        setMessageError('');
       });
 
       socketService.onMessageError((error) => {
         console.error('Message error:', error);
-        // You could show a toast notification here
-      });
-
-      socketService.onUsersUpdated((users: string[]) => {
-        // Filter out current user from the list
-        const otherUsers = users.filter(user => user !== currentUser);
-        setOnlineUsers(otherUsers);
+        setMessageError(`Failed to send message: ${error.error}`);
+        setTimeout(() => setMessageError(''), 5000);
       });
 
       socketService.onUserTyping((data: UserTyping) => {
@@ -110,9 +107,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const handleSendMessage = () => {
-    if (!newMessage.trim() || !selectedUser || !isConnected) return;
+    if (!newMessage.trim() || !recipientUsername.trim() || !isConnected) return;
 
-    const success = socketService.sendPrivateMessage(selectedUser, newMessage.trim());
+    const success = socketService.sendPrivateMessage(recipientUsername.trim(), newMessage.trim());
     
     if (success) {
       setNewMessage('');
@@ -130,7 +127,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
     
-    if (selectedUser && e.target.value.trim() && !isTyping) {
+    if (recipientUsername && e.target.value.trim() && !isTyping) {
       startTyping();
     } else if (!e.target.value.trim() && isTyping) {
       stopTyping();
@@ -138,9 +135,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const startTyping = () => {
-    if (!isTyping && selectedUser) {
+    if (!isTyping && recipientUsername) {
       setIsTyping(true);
-      socketService.startTyping(selectedUser);
+      socketService.startTyping(recipientUsername);
       
       // Clear existing timeout
       if (typingTimeoutRef.current) {
@@ -155,9 +152,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const stopTyping = () => {
-    if (isTyping && selectedUser) {
+    if (isTyping && recipientUsername) {
       setIsTyping(false);
-      socketService.stopTyping(selectedUser);
+      socketService.stopTyping(recipientUsername);
       
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -166,11 +163,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const getConversationMessages = () => {
-    if (!selectedUser) return [];
+    if (!recipientUsername) return [];
     
     return messages.filter(msg => 
-      (msg.from === currentUser && msg.to === selectedUser) ||
-      (msg.from === selectedUser && msg.to === currentUser)
+      (msg.from === currentUser && msg.to === recipientUsername) ||
+      (msg.from === recipientUsername && msg.to === currentUser)
     ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   };
 
@@ -186,189 +183,143 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl h-[80vh] overflow-hidden flex">
+      <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl h-[80vh] overflow-hidden flex flex-col">
         
-        {/* Sidebar - User List */}
-        <div className="w-1/3 bg-gray-800 border-r border-gray-700 flex flex-col">
-          {/* Sidebar Header */}
-          <div className="glass-header p-4 text-white border-b border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="w-5 h-5 icon-shadow-white-sm" />
-                <h3 className="font-semibold text-shadow-white-sm">Chat</h3>
-              </div>
-              <div className="flex items-center space-x-2">
-                {isConnected ? (
-                  <Wifi className="w-4 h-4 text-green-400 icon-shadow-white-sm" />
-                ) : (
-                  <WifiOff className="w-4 h-4 text-red-400 icon-shadow-white-sm" />
-                )}
-                <button
-                  onClick={onClose}
-                  className="p-1 hover:bg-white/20 rounded-full transition-colors"
-                >
-                  <X className="w-4 h-4 icon-shadow-white-sm" />
-                </button>
-              </div>
+        {/* Chat Header */}
+        <div className="glass-header p-4 text-white border-b border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="w-5 h-5 icon-shadow-white-sm" />
+              <h3 className="font-semibold text-shadow-white-sm">Direct Messages</h3>
             </div>
-          </div>
-
-          {/* Connection Status */}
-          <div className="p-3 border-b border-gray-700">
-            <div className={`text-xs px-2 py-1 rounded-full text-center ${
-              isConnected 
-                ? 'bg-green-900/30 text-green-300 border border-green-700' 
-                : 'bg-red-900/30 text-red-300 border border-red-700'
-            }`}>
-              {isConnected ? 'Connected' : 'Connecting...'}
-            </div>
-          </div>
-
-          {/* Online Users */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="p-3">
-              <div className="flex items-center space-x-2 mb-3">
-                <Users className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-medium text-gray-300">
-                  Online Users ({onlineUsers.length})
-                </span>
-              </div>
-              
-              {onlineUsers.length === 0 ? (
-                <div className="text-center py-8 text-gray-400">
-                  <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No other users online</p>
-                </div>
+            <div className="flex items-center space-x-2">
+              {isConnected ? (
+                <Wifi className="w-4 h-4 text-green-400 icon-shadow-white-sm" />
               ) : (
-                <div className="space-y-1">
-                  {onlineUsers.map((user) => (
-                    <button
-                      key={user}
-                      onClick={() => setSelectedUser(user)}
-                      className={`w-full p-3 rounded-lg text-left transition-all duration-200 flex items-center space-x-3 ${
-                        selectedUser === user
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                      }`}
-                    >
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
-                          Guest {user}
-                        </p>
-                        {typingUsers.has(user) && (
-                          <p className="text-xs opacity-75 italic">typing...</p>
-                        )}
-                      </div>
-                      <div className="w-2 h-2 bg-green-400 rounded-full flex-shrink-0"></div>
-                    </button>
-                  ))}
-                </div>
+                <WifiOff className="w-4 h-4 text-red-400 icon-shadow-white-sm" />
               )}
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4 icon-shadow-white-sm" />
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {/* Chat Header */}
-          <div className="glass-header p-4 text-white border-b border-gray-700">
-            {selectedUser ? (
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-shadow-white-sm">Guest {selectedUser}</h3>
-                  {typingUsers.has(selectedUser) && (
-                    <p className="text-xs text-blue-200 text-shadow-white-sm italic">typing...</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center">
-                <h3 className="font-semibold text-shadow-white-sm">Select a user to start chatting</h3>
-              </div>
-            )}
+        {/* Connection Status */}
+        <div className="p-3 border-b border-gray-700">
+          <div className={`text-xs px-2 py-1 rounded-full text-center ${
+            isConnected 
+              ? 'bg-green-900/30 text-green-300 border border-green-700' 
+              : 'bg-red-900/30 text-red-300 border border-red-700'
+          }`}>
+            {isConnected ? 'Connected' : 'Connecting...'}
           </div>
+        </div>
 
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {selectedUser ? (
-              <>
-                {getConversationMessages().length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p>No messages yet</p>
-                    <p className="text-sm">Start the conversation!</p>
-                  </div>
-                ) : (
-                  getConversationMessages().map((message) => (
+        {/* Recipient Input */}
+        <div className="p-4 border-b border-gray-700">
+          <div className="flex items-center space-x-3">
+            <User className="w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={recipientUsername}
+              onChange={(e) => setRecipientUsername(e.target.value)}
+              placeholder="Enter username to message..."
+              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder:text-gray-400"
+            />
+          </div>
+          {recipientUsername && typingUsers.has(recipientUsername) && (
+            <p className="text-xs text-blue-300 mt-2 ml-7 italic">
+              Guest {recipientUsername} is typing...
+            </p>
+          )}
+        </div>
+
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {recipientUsername ? (
+            <>
+              {getConversationMessages().length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No messages with Guest {recipientUsername} yet</p>
+                  <p className="text-sm">Start the conversation!</p>
+                </div>
+              ) : (
+                getConversationMessages().map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.from === currentUser ? 'justify-end' : 'justify-start'}`}
+                  >
                     <div
-                      key={message.id}
-                      className={`flex ${message.from === currentUser ? 'justify-end' : 'justify-start'}`}
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
+                        message.from === currentUser
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 text-gray-200'
+                      }`}
                     >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                          message.from === currentUser
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 text-gray-200'
-                        }`}
-                      >
-                        <p className="text-sm">{message.message}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.from === currentUser ? 'text-blue-200' : 'text-gray-400'
-                        }`}>
-                          {formatTime(message.timestamp)}
-                        </p>
-                      </div>
+                      <p className="text-sm">{message.message}</p>
+                      <p className={`text-xs mt-1 ${
+                        message.from === currentUser ? 'text-blue-200' : 'text-gray-400'
+                      }`}>
+                        {formatTime(message.timestamp)}
+                      </p>
                     </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-gray-400">
-                <div className="text-center">
-                  <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">Welcome to Fellowship Chat</p>
-                  <p className="text-sm">Select a user from the sidebar to start messaging</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Message Input */}
-          {selectedUser && (
-            <div className="border-t border-gray-700 p-4">
-              <div className="flex space-x-3">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={handleInputChange}
-                  onKeyPress={handleKeyPress}
-                  placeholder={`Message Guest ${selectedUser}...`}
-                  disabled={!isConnected}
-                  className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder:text-gray-400 disabled:opacity-50"
-                />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim() || !isConnected}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                >
-                  <Send className="w-4 h-4" />
-                  <span className="hidden sm:inline">Send</span>
-                </button>
-              </div>
-              
-              {!isConnected && (
-                <p className="text-xs text-red-400 mt-2">
-                  Disconnected from chat server. Trying to reconnect...
-                </p>
+                  </div>
+                ))
               )}
+              <div ref={messagesEndRef} />
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <MessageSquare className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">Welcome to Direct Messages</p>
+                <p className="text-sm">Enter a username above to start messaging</p>
+              </div>
             </div>
+          )}
+        </div>
+
+        {/* Error Message */}
+        {messageError && (
+          <div className="px-4 py-2 bg-red-900/30 border-t border-red-700">
+            <div className="flex items-center space-x-2 text-red-300">
+              <AlertCircle className="w-4 h-4" />
+              <p className="text-sm">{messageError}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Message Input */}
+        <div className="border-t border-gray-700 p-4">
+          <div className="flex space-x-3">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={handleInputChange}
+              onKeyPress={handleKeyPress}
+              placeholder={recipientUsername ? `Message Guest ${recipientUsername}...` : "Enter a username above first..."}
+              disabled={!isConnected || !recipientUsername.trim()}
+              className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder:text-gray-400 disabled:opacity-50"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={!newMessage.trim() || !recipientUsername.trim() || !isConnected}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+            >
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Send</span>
+            </button>
+          </div>
+          
+          {!isConnected && (
+            <p className="text-xs text-red-400 mt-2">
+              Disconnected from chat server. Trying to reconnect...
+            </p>
           )}
         </div>
       </div>

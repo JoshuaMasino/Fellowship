@@ -107,10 +107,6 @@ class SocketService {
     this.socket?.on('message_error', callback);
   }
 
-  onUsersUpdated(callback: (users: string[]) => void) {
-    this.socket?.on('users_updated', callback);
-  }
-
   onUserTyping(callback: (data: UserTyping) => void) {
     this.socket?.on('user_typing', callback);
   }
