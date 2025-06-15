@@ -7,13 +7,27 @@ export interface LocationData {
   locality?: string;
 }
 
+// Normalize longitude to be within -180 to 180 range
+const normalizeLongitude = (lng: number): number => {
+  // Normalize longitude to be within -180 to 180
+  while (lng > 180) lng -= 360;
+  while (lng < -180) lng += 360;
+  return lng;
+};
+
 // Free reverse geocoding using OpenStreetMap Nominatim API
 export const reverseGeocode = async (lat: number, lng: number): Promise<LocationData> => {
   try {
-    console.log('🌍 Starting reverse geocoding for coordinates:', { lat, lng });
+    // Normalize longitude before making the API call
+    const normalizedLng = normalizeLongitude(lng);
+    
+    console.log('🌍 Starting reverse geocoding for coordinates:', { 
+      original: { lat, lng }, 
+      normalized: { lat, lng: normalizedLng } 
+    });
     
     const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`,
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${normalizedLng}&addressdetails=1&accept-language=en`,
       {
         headers: {
           'User-Agent': 'Fellowship-Finder/1.0'
@@ -21,15 +35,22 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<Location
       }
     );
 
+    console.log('📡 Raw geocoding response:', { status: response.status, ok: response.ok });
+
     if (!response.ok) {
       console.error('❌ Geocoding request failed with status:', response.status);
-      throw new Error('Geocoding request failed');
+      throw new Error(`Geocoding request failed with status ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('📡 Raw geocoding response:', data);
+    console.log('🔍 Raw geocoding response:', data);
     
-    if (!data || !data.address) {
+    if (!data || data.error) {
+      console.log('⚠️ No address data in response or error occurred:', data?.error);
+      return {};
+    }
+
+    if (!data.address) {
       console.log('⚠️ No address data in response');
       return {};
     }
