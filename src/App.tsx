@@ -31,6 +31,32 @@ function App() {
     // Fetch initial pins
     fetchPins();
 
+    // Listen for auth state changes
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          setIsAuthenticated(true);
+          setIsAuthPageOpen(false); // Auto-close auth page on successful sign-in
+          
+          // Get the user's profile and update current user
+          const profile = await getCurrentUserProfile();
+          if (profile) {
+            setCurrentUser(profile.username);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setIsAuthenticated(false);
+          // Reset to guest username
+          setCurrentUser(getGuestUsername());
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+
     // Listen for auth open events from profile modal
     const handleOpenAuth = () => {
       setIsAuthPageOpen(true);
@@ -329,7 +355,7 @@ function App() {
     }
   };
 
-  const handleGuestContinue = () => {
+  const handleCloseAuth = () => {
     setIsAuthPageOpen(false);
   };
 
@@ -339,7 +365,7 @@ function App() {
 
   // Show auth page if requested
   if (isAuthPageOpen) {
-    return <AuthPage onGuestContinue={handleGuestContinue} />;
+    return <AuthPage onCloseAuth={handleCloseAuth} />;
   }
 
   console.log('🗺️ Rendering main app');

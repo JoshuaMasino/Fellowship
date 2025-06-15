@@ -3,10 +3,10 @@ import { User, Mail, Lock, MapPin, Zap, CheckCircle, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface AuthPageProps {
-  onGuestContinue: () => void;
+  onCloseAuth: () => void;
 }
 
-const AuthPage: React.FC<AuthPageProps> = ({ onGuestContinue }) => {
+const AuthPage: React.FC<AuthPageProps> = ({ onCloseAuth }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -43,6 +43,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onGuestContinue }) => {
         });
         
         if (error) throw error;
+        
+        // The App component will handle closing the auth page via onAuthStateChange
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -106,20 +108,13 @@ const AuthPage: React.FC<AuthPageProps> = ({ onGuestContinue }) => {
 
       {/* Close Button - Return to Guest Mode */}
       <button
-        onClick={onGuestContinue}
+        onClick={onCloseAuth}
         className="fixed top-6 right-6 z-50 w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all duration-200 shadow-lg"
         title="Return to Guest Mode"
       >
         <X className="w-6 h-6" />
       </button>
-      {/* Close Button - Return to Guest Mode */}
-      <button
-        onClick={onGuestContinue}
-        className="fixed top-6 right-6 z-50 w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all duration-200 shadow-lg"
-        title="Return to Guest Mode"
-      >
-        <X className="w-6 h-6" />
-      </button>
+
       <div className="relative w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
@@ -228,7 +223,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onGuestContinue }) => {
 
           {/* Guest Option */}
           <button
-            onClick={onGuestContinue}
+            onClick={onCloseAuth}
             className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-800 py-3 rounded-lg font-medium hover:from-yellow-500 hover:to-orange-500 transition-all duration-200 shadow-lg flex items-center justify-center space-x-2"
           >
             <Zap className="w-5 h-5" />
