@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, Camera, Plus, Upload, Palette } from 'lucide-react';
+import { X, MapPin, Camera, Plus, Upload, Palette, UserPlus } from 'lucide-react';
 import { supabase, uploadImage, getImageUrl, TRIBE_COLORS, TribeName } from '../../lib/supabase';
 
 interface PinCreationModalProps {
@@ -56,7 +56,7 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
   };
 
   const handleAddImageUrl = () => {
-    if (imageUrl.trim() && images.length < 3 && !images.includes(imageUrl.trim())) {
+    if (imageUrl.trim() && images.length < 3 && !images.includes(imageUrl.trim()) && isAuthenticated) {
       setImages([...images, imageUrl.trim()]);
       setImageUrl('');
     }
@@ -226,6 +226,23 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
               Images (up to 3)
             </label>
             
+            {/* Guest Signup Reminder */}
+            {!isAuthenticated && (
+              <div className="mb-4 p-4 bg-blue-900/30 border border-blue-700 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <UserPlus className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-blue-300 text-sm font-medium mb-1">
+                      Sign up to unlock image uploads!
+                    </p>
+                    <p className="text-blue-200 text-xs">
+                      If you would like to post images with your pin and access more features please sign up for an account
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* File Upload - Only for authenticated users */}
             {isAuthenticated && (
               <div className="mb-3">
@@ -244,26 +261,27 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
                     multiple
                     accept="image/*"
                     onChange={handleFileUpload}
-                    disabled={uploading || images.length >= 3}
+                    disabled={uploading || images.length >= 3 || !isAuthenticated}
                     className="hidden"
                   />
                 </label>
               </div>
             )}
 
-            {/* URL Input - Available for all users */}
+            {/* URL Input - Available for all users but disabled for guests */}
             <div className="flex space-x-2 mb-3">
               <input
                 type="url"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 onKeyPress={handleImageUrlKeyPress}
-                placeholder="Or paste image URL"
-                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-sm text-gray-200 placeholder:text-gray-400"
+                placeholder={isAuthenticated ? "Or paste image URL" : "Sign up to add images"}
+                disabled={!isAuthenticated}
+                className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent text-sm text-gray-200 placeholder:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button
                 onClick={handleAddImageUrl}
-                disabled={!imageUrl.trim() || images.length >= 3}
+                disabled={!imageUrl.trim() || images.length >= 3 || !isAuthenticated}
                 className="px-4 py-2 bg-yellow-400 text-gray-800 rounded-lg hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -294,7 +312,7 @@ const PinCreationModal: React.FC<PinCreationModalProps> = ({
             <p className="text-xs text-gray-400 mt-2">
               {isAuthenticated 
                 ? 'Upload local images or use URLs from services like Pexels, Unsplash'
-                : 'Use image URLs from services like Pexels, Unsplash, or your own hosting'
+                : 'Create an account to upload images and use URLs from services like Pexels, Unsplash'
               }
             </p>
           </div>
