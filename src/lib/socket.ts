@@ -26,8 +26,11 @@ class SocketService {
     this.currentUser = username;
     this.isAuthenticated = isAuthenticated;
 
-    // Connect to the server (adjust URL as needed)
-    this.socket = io('http://localhost:3001', {
+    // Use environment variable for chat server URL, fallback to localhost for development
+    const chatServerUrl = import.meta.env.VITE_CHAT_SERVER_URL || 'http://localhost:3001';
+
+    // Connect to the server
+    this.socket = io(chatServerUrl, {
       transports: ['websocket', 'polling'],
       timeout: 20000,
     });
