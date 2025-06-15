@@ -6,6 +6,7 @@ import UserProfileModal from './components/UI/UserProfileModal';
 import ExploreModal from './components/UI/ExploreModal';
 import ChatWindow from './components/UI/ChatWindow';
 import AuthPage from './components/Auth/AuthPage';
+import SignOutConfirmationModal from './components/UI/SignOutConfirmationModal';
 import { Pin, supabase, getCurrentUserProfile } from './lib/supabase';
 import { getGuestUsername, setGuestUsername } from './lib/storage';
 
@@ -17,6 +18,7 @@ function App() {
   const [isExploreModalOpen, setIsExploreModalOpen] = useState(false);
   const [isChatWindowOpen, setIsChatWindowOpen] = useState(false);
   const [isAuthPageOpen, setIsAuthPageOpen] = useState(false);
+  const [showSignOutConfirmation, setShowSignOutConfirmation] = useState(false);
   const [profileToViewUsername, setProfileToViewUsername] = useState('');
   const [pinToOpenOnMap, setPinToOpenOnMap] = useState<string | null>(null);
   const [pendingPin, setPendingPin] = useState<{ lat: number; lng: number } | null>(null);
@@ -122,6 +124,32 @@ function App() {
 
   const handleOpenChatWindow = () => {
     setIsChatWindowOpen(true);
+  };
+
+  const handleAuthButtonClick = () => {
+    if (isAuthenticated) {
+      // Show sign-out confirmation
+      setShowSignOutConfirmation(true);
+    } else {
+      // Open auth page for sign-in
+      setIsAuthPageOpen(true);
+    }
+  };
+
+  const handleSignOutConfirm = async () => {
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+        setShowSignOutConfirmation(false);
+        setIsAuthPageOpen(true); // Redirect to sign-in page
+      } catch (error) {
+        console.error('Error signing out:', error);
+      }
+    }
+  };
+
+  const handleSignOutCancel = () => {
+    setShowSignOutConfirmation(false);
   };
 
   const fetchPins = async () => {
@@ -394,8 +422,10 @@ function App() {
         onOpenUserProfile={() => handleOpenUserProfile(currentUser)}
         onOpenExploreModal={handleOpenExploreModal}
         onOpenChatWindow={handleOpenChatWindow}
+        onAuthButtonClick={handleAuthButtonClick}
         totalPins={pins.length}
         currentUser={currentUser}
+        isAuthenticated={isAuthenticated}
       />
 
       <PinCreationModal
@@ -436,6 +466,12 @@ function App() {
         onClose={() => setIsChatWindowOpen(false)}
         currentUser={currentUser}
         isAuthenticated={isAuthenticated}
+      />
+
+      <SignOutConfirmationModal
+        isOpen={showSignOutConfirmation}
+        onConfirm={handleSignOutConfirm}
+        onCancel={handleSignOutCancel}
       />
 
       {!isConnected && (

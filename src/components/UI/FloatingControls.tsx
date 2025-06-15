@@ -1,23 +1,44 @@
 import React from 'react';
-import { User, MapPin, Zap, MessageSquare } from 'lucide-react';
+import { User, MapPin, Zap, MessageSquare, LogIn, LogOut } from 'lucide-react';
 
 interface FloatingControlsProps {
   onOpenUserProfile: () => void;
   onOpenExploreModal: () => void;
   onOpenChatWindow: () => void;
+  onAuthButtonClick: () => void;
   totalPins: number;
   currentUser: string;
+  isAuthenticated: boolean;
 }
 
 const FloatingControls: React.FC<FloatingControlsProps> = ({
   onOpenUserProfile,
   onOpenExploreModal,
   onOpenChatWindow,
+  onAuthButtonClick,
   totalPins,
   currentUser,
+  isAuthenticated,
 }) => {
   return (
     <div className="fixed bottom-4 left-4 z-40 space-y-3 pointer-events-none">
+      {/* Auth Button - Sign In/Sign Out */}
+      <button
+        onClick={onAuthButtonClick}
+        className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center hover:scale-105 transition-all duration-200 pointer-events-auto ${
+          isAuthenticated 
+            ? 'glass-blue hover:bg-red-200/30' 
+            : 'glass-blue hover:bg-green-200/30'
+        }`}
+        title={isAuthenticated ? 'Sign out' : 'Sign in'}
+      >
+        {isAuthenticated ? (
+          <LogOut className="w-6 h-6 text-red-600 icon-shadow-white-sm" />
+        ) : (
+          <LogIn className="w-6 h-6 text-green-600 icon-shadow-white-sm" />
+        )}
+      </button>
+
       {/* User Profile Button */}
       <button
         onClick={onOpenUserProfile}
