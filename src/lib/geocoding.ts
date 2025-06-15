@@ -10,6 +10,8 @@ export interface LocationData {
 // Free reverse geocoding using OpenStreetMap Nominatim API
 export const reverseGeocode = async (lat: number, lng: number): Promise<LocationData> => {
   try {
+    console.log('🌍 Starting reverse geocoding for coordinates:', { lat, lng });
+    
     const response = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=en`,
       {
@@ -20,16 +22,20 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<Location
     );
 
     if (!response.ok) {
+      console.error('❌ Geocoding request failed with status:', response.status);
       throw new Error('Geocoding request failed');
     }
 
     const data = await response.json();
+    console.log('📡 Raw geocoding response:', data);
     
     if (!data || !data.address) {
+      console.log('⚠️ No address data in response');
       return {};
     }
 
     const address = data.address;
+    console.log('🏠 Address object:', address);
     
     // Extract location components
     const locationData: LocationData = {
@@ -39,7 +45,7 @@ export const reverseGeocode = async (lat: number, lng: number): Promise<Location
       locality: address.city || address.town || address.village || address.municipality
     };
 
-    console.log('🌍 Reverse geocoding result:', locationData);
+    console.log('✅ Final location data:', locationData);
     return locationData;
   } catch (error) {
     console.error('❌ Reverse geocoding failed:', error);
