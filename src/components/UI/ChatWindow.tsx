@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, MessageSquare, Wifi, WifiOff, User, AlertCircle } from 'lucide-react';
+import { X, Send, MessageSquare, Wifi, WifiOff, User, AlertCircle, UserPlus, Lock } from 'lucide-react';
 import { socketService, ChatMessage, UserTyping } from '../../lib/socket';
 
 interface ChatWindowProps {
@@ -26,7 +26,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
-    if (isOpen && !socketService.isConnected()) {
+    // Only connect if user is authenticated
+    if (isOpen && isAuthenticated && !socketService.isConnected()) {
       connectToChat();
     }
 
@@ -181,6 +182,76 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
   if (!isOpen) return null;
 
+  // Show signup reminder for unauthenticated users
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+          
+          {/* Header */}
+          <div className="glass-header p-4 text-white border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="w-5 h-5 icon-shadow-white-sm" />
+                <h3 className="font-semibold text-shadow-white-sm">Direct Messages</h3>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4 icon-shadow-white-sm" />
+              </button>
+            </div>
+          </div>
+
+          {/* Signup Reminder Content */}
+          <div className="p-8 text-center">
+            <div className="mb-6">
+              <div className="w-16 h-16 bg-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Lock className="w-8 h-8 text-blue-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                Authentication Required
+              </h3>
+              <p className="text-gray-400 leading-relaxed">
+                Sign up in order to access direct messaging service
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-3 text-sm text-gray-300 bg-gray-800/50 rounded-lg p-3">
+                <MessageSquare className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                <span>Send private messages to other users</span>
+              </div>
+              <div className="flex items-center space-x-3 text-sm text-gray-300 bg-gray-800/50 rounded-lg p-3">
+                <User className="w-4 h-4 text-green-400 flex-shrink-0" />
+                <span>Real-time chat with typing indicators</span>
+              </div>
+              <div className="flex items-center space-x-3 text-sm text-gray-300 bg-gray-800/50 rounded-lg p-3">
+                <Wifi className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                <span>Secure and reliable messaging</span>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-gray-700">
+              <button
+                onClick={onClose}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Sign Up to Continue</span>
+              </button>
+              <p className="text-xs text-gray-500 mt-3">
+                Close this window and click "Sign Up" to create your account
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular chat interface for authenticated users
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl h-[80vh] overflow-hidden flex flex-col">
@@ -233,7 +304,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
           {recipientUsername && typingUsers.has(recipientUsername) && (
             <p className="text-xs text-blue-300 mt-2 ml-7 italic">
-              Guest {recipientUsername} is typing...
+              {recipientUsername} is typing...
             </p>
           )}
         </div>
@@ -245,7 +316,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               {getConversationMessages().length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
                   <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>No messages with Guest {recipientUsername} yet</p>
+                  <p>No messages with {recipientUsername} yet</p>
                   <p className="text-sm">Start the conversation!</p>
                 </div>
               ) : (
@@ -302,7 +373,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               value={newMessage}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
-              placeholder={recipientUsername ? `Message Guest ${recipientUsername}...` : "Enter a username above first..."}
+              placeholder={recipientUsername ? `Message ${recipientUsername}...` : "Enter a username above first..."}
               disabled={!isConnected || !recipientUsername.trim()}
               className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-200 placeholder:text-gray-400 disabled:opacity-50"
             />
