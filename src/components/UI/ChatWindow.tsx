@@ -235,15 +235,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
             <div className="mt-6 pt-6 border-t border-gray-700">
               <button
-                onClick={onClose}
+                onClick={() => {
+                  onClose();
+                  window.dispatchEvent(new CustomEvent('openAuth'));
+                }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Sign Up to Continue</span>
               </button>
-              <p className="text-xs text-gray-500 mt-3">
-                Close this window and click "Sign Up" to create your account
-              </p>
             </div>
           </div>
         </div>
