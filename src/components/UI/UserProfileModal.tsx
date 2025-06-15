@@ -76,6 +76,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
   };
 
+  const handleSignupClick = () => {
+    onClose();
+    window.dispatchEvent(new CustomEvent('openAuth'));
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       month: 'long',
@@ -218,11 +223,7 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({
               {isOwnProfile && !isAuthenticated && (
                 <div className="mb-4">
                   <button
-                    onClick={() => {
-                      onClose();
-                      // This will be handled by the parent component
-                      window.dispatchEvent(new CustomEvent('openAuth'));
-                    }}
+                    onClick={handleSignupClick}
                     className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg flex items-center justify-center space-x-2"
                   >
                     <User className="w-5 h-5" />
