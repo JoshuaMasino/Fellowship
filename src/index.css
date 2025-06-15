@@ -25,6 +25,55 @@
   display: none;
 }
 
+/* Marker cluster styles */
+.marker-cluster-small {
+  background-color: rgba(255, 252, 0, 0.6);
+}
+
+.marker-cluster-small div {
+  background-color: rgba(255, 252, 0, 0.8);
+}
+
+.marker-cluster-medium {
+  background-color: rgba(255, 165, 0, 0.6);
+}
+
+.marker-cluster-medium div {
+  background-color: rgba(255, 165, 0, 0.8);
+}
+
+.marker-cluster-large {
+  background-color: rgba(255, 107, 107, 0.6);
+}
+
+.marker-cluster-large div {
+  background-color: rgba(255, 107, 107, 0.8);
+}
+
+.marker-cluster {
+  background-clip: padding-box;
+  border-radius: 50%;
+}
+
+.marker-cluster div {
+  width: 30px;
+  height: 30px;
+  margin-left: 5px;
+  margin-top: 5px;
+  text-align: center;
+  border-radius: 50%;
+  font: 12px "Helvetica Neue", Arial, Helvetica, sans-serif;
+  font-weight: bold;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-cluster span {
+  line-height: 30px;
+}
+
 /* Scrollbar styles */
 ::-webkit-scrollbar {
   width: 6px;

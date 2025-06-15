@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMapEvents, Marker, Popup } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import { LatLng, Icon, Map as LeafletMap } from 'leaflet';
 import { Plus, Minus, Layers, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
@@ -32,6 +33,41 @@ const createTemporaryPinIcon = () => new Icon({
   iconAnchor: [16, 42],
   popupAnchor: [0, -42],
 });
+
+// Custom cluster icon function
+const createClusterCustomIcon = (cluster: any) => {
+  const count = cluster.getChildCount();
+  let size = 'small';
+  let color = '#FFFC00';
+  
+  if (count < 10) {
+    size = 'small';
+    color = '#FFFC00';
+  } else if (count < 100) {
+    size = 'medium';
+    color = '#FFA500';
+  } else {
+    size = 'large';
+    color = '#FF6B6B';
+  }
+
+  const iconSize = size === 'small' ? 40 : size === 'medium' ? 50 : 60;
+  const fontSize = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
+
+  return new Icon({
+    iconUrl: `data:image/svg+xml;base64,${btoa(`
+      <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 ${iconSize} ${iconSize}" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="${iconSize/2}" cy="${iconSize/2}" r="${iconSize/2 - 2}" fill="${color}" stroke="white" stroke-width="3"/>
+        <text x="${iconSize/2}" y="${iconSize/2}" text-anchor="middle" dominant-baseline="central" 
+              fill="white" font-family="Arial, sans-serif" font-size="${fontSize}" font-weight="bold">
+          ${count}
+        </text>
+      </svg>
+    `)}`,
+    iconSize: [iconSize, iconSize],
+    iconAnchor: [iconSize/2, iconSize/2],
+  });
+};
 
 interface MapEventsProps {
   onMapClick: (latlng: LatLng) => void;
@@ -181,46 +217,60 @@ const MapComponent: React.FC<MapComponentProps> = ({
         />
         <MapEvents onMapClick={handleMapClick} isPinPopupOpen={isPinPopupOpen} />
         
-        {/* Regular pins */}
-        {pins.map((pin) => (
-          <Marker
-            key={pin.id}
-            position={[pin.lat, pin.lng]}
-            icon={createPinIcon(pin.pin_color || '#FFFC00')}
-            ref={(ref) => {
-              if (ref) {
-                markersRef.current[pin.id] = ref;
-              }
-            }}
-            eventHandlers={{
-              click: () => handlePinClick(pin),
-            }}
-          >
-            <Popup
-              closeButton={false}
-              className="custom-popup"
-              minWidth={320}
-              maxWidth={400}
+        {/* Clustered pins */}
+        <MarkerClusterGroup
+          chunkedLoading
+          iconCreateFunction={createClusterCustomIcon}
+          maxClusterRadius={50}
+          spiderfyOnMaxZoom={true}
+          showCoverageOnHover={false}
+          zoomToBoundsOnClick={true}
+          spiderfyDistanceMultiplier={1.5}
+          removeOutsideVisibleBounds={true}
+          animate={true}
+          animateAddingMarkers={true}
+          disableClusteringAtZoom={18}
+        >
+          {pins.map((pin) => (
+            <Marker
+              key={pin.id}
+              position={[pin.lat, pin.lng]}
+              icon={createPinIcon(pin.pin_color || '#FFFC00')}
+              ref={(ref) => {
+                if (ref) {
+                  markersRef.current[pin.id] = ref;
+                }
+              }}
               eventHandlers={{
-                remove: () => handlePopupClose(),
+                click: () => handlePinClick(pin),
               }}
             >
-              <PinPopup
-                pin={pin}
-                currentUser={currentUser}
-                isAdmin={isAdmin}
-                onDelete={() => {
-                  onDeletePin(pin.id);
-                  handlePopupClose();
+              <Popup
+                closeButton={false}
+                className="custom-popup"
+                minWidth={320}
+                maxWidth={400}
+                eventHandlers={{
+                  remove: () => handlePopupClose(),
                 }}
-                onLike={onLikePin}
-                onComment={onCommentPin}
-                onOpenUserProfile={onOpenUserProfile}
-                onClose={handleForceClosePopup}
-              />
-            </Popup>
-          </Marker>
-        ))}
+              >
+                <PinPopup
+                  pin={pin}
+                  currentUser={currentUser}
+                  isAdmin={isAdmin}
+                  onDelete={() => {
+                    onDeletePin(pin.id);
+                    handlePopupClose();
+                  }}
+                  onLike={onLikePin}
+                  onComment={onCommentPin}
+                  onOpenUserProfile={onOpenUserProfile}
+                  onClose={handleForceClosePopup}
+                />
+              </Popup>
+            </Marker>
+          ))}
+        </MarkerClusterGroup>
 
         {/* Temporary pin for first click */}
         {firstClickLocation && (
